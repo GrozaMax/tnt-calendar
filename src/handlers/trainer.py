@@ -1,40 +1,41 @@
 """
-Обработчики для администраторов
+Обработчики для тренеров
 
-Админ-панель в Telegram теперь только для просмотра.
-Управление тренировками и пользователями - через веб-интерфейс.
+Функционал просмотра для тренеров:
+- Просмотр своего расписания
+- Просмотр количества записавшихся
+- Просмотр списка участников
 """
 from datetime import date, timedelta
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update
 from telegram.ext import ContextTypes
 
 from src.database import get_session
-from src.database.repositories import WorkoutRepository, UserRepository, BookingRepository
+from src.database.repositories import WorkoutRepository, BookingRepository
+from src.keyboards.athlete_keyboards import main_menu_keyboard
 from src.locales import get_text
 from src.models import User, UserRole, BookingStatus
 from src.utils.decorators import role_required
 
 
-@role_required(UserRole.ADMIN)
-async def show_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показать меню администратора (только просмотр)"""
+@role_required(UserRole.TRAINER)
+async def show_trainer_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показать меню тренера"""
     query = update.callback_query
     await query.answer()
     
     user: User = context.user_data.get('current_user')
     lang = user.language if user else 'ru'
     
-    text = "👑 *Панель администратора*\n\n"
-    text += "🔍 *Режим просмотра*\n\n"
-    text += "Для управления тренировками и пользователями используйте веб-интерфейс:\n"
-    text += "https://your-domain.com\n\n"
-    text += "Здесь вы можете просматривать расписание и участников."
+    text = "🤸‍♀️ *Панель тренера*\n\n"
+    text += "Выберите действие:"
+    
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
     
     keyboard = [
-        [InlineKeyboardButton("📅 Расписание на сегодня", callback_data='admin_view_workouts:today')],
-        [InlineKeyboardButton("📅 Расписание на завтра", callback_data='admin_view_workouts:tomorrow')],
-        [InlineKeyboardButton("📅 Расписание на неделю", callback_data='admin_view_workouts:week')],
-        [InlineKeyboardButton("👥 Статистика пользователей", callback_data='admin_users_stats')],
+        [InlineKeyboardButton("📅 Мои тренировки на сегодня", callback_data='trainer_workouts:today')],
+        [InlineKeyboardButton("📅 Мои тренировки на завтра", callback_data='trainer_workouts:tomorrow')],
+        [InlineKeyboardButton("📅 Мои тренировки на неделю", callback_data='trainer_workouts:week')],
         [InlineKeyboardButton(get_text('menu.back', lang), callback_data='main_menu')]
     ]
     
@@ -45,9 +46,9 @@ async def show_admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-@role_required(UserRole.ADMIN)
-async def show_admin_workouts(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показать расписание (для просмотра)"""
+@role_required(UserRole.TRAINER)
+async def show_trainer_workouts(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показать тренировки тренера"""
     query = update.callback_query
     await query.answer()
     
@@ -73,16 +74,22 @@ async def show_admin_workouts(update: Update, context: ContextTypes.DEFAULT_TYPE
     async with get_session() as session:
         workout_repo = WorkoutRepository(session)
         workouts = await workout_repo.get_by_date_range(
-            target_date,
+            target_date, 
             date_end,
             load_relations=True
         )
+        
+        # Фильтруем только тренировки этого тренера
+        workouts = [w for w in workouts if w.trainer_id == user.id]
     
     if not workouts:
         text = f"📅 *{title}*\n\n"
-        text += "Тренировок не найдено"
+        text += "У вас нет запланированных тренировок\n\n"
+        text += "💡 Для создания тренировок используйте веб-интерфейс:\n"
+        text += "https://your-domain.com"
         
-        keyboard = [[InlineKeyboardButton("« Назад", callback_data='admin_menu')]]
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+        keyboard = [[InlineKeyboardButton("« Назад", callback_data='trainer_menu')]]
         
         await query.edit_message_text(
             text,
@@ -91,10 +98,11 @@ async def show_admin_workouts(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
         return
     
-    text = f"📅 *Расписание: {title}*\n\n"
-    text += f"Всего тренировок: *{len(workouts)}*\n\n"
+    text = f"📅 *Ваши тренировки: {title}*\n\n"
+    text += f"Найдено: *{len(workouts)}*\n\n"
     
     # Создаём кнопки для каждой тренировки
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
     keyboard = []
     
     for workout in workouts[:20]:  # Ограничение в 20
@@ -114,15 +122,12 @@ async def show_admin_workouts(update: Update, context: ContextTypes.DEFAULT_TYPE
         keyboard.append([
             InlineKeyboardButton(
                 button_text,
-                callback_data=f'admin_workout_details:{workout.id}'
+                callback_data=f'trainer_workout_info:{workout.id}'
             )
         ])
     
-    if len(workouts) > 20:
-        text += f"\n⚠️ Показаны первые 20 из {len(workouts)}"
-    
     keyboard.append([
-        InlineKeyboardButton("« Назад", callback_data='admin_menu')
+        InlineKeyboardButton("« Назад", callback_data='trainer_menu')
     ])
     
     await query.edit_message_text(
@@ -132,9 +137,9 @@ async def show_admin_workouts(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
 
 
-@role_required(UserRole.ADMIN)
-async def show_workout_details(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показать детали тренировки с участниками"""
+@role_required(UserRole.TRAINER)
+async def show_trainer_workout_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показать информацию о тренировке (для тренера)"""
     query = update.callback_query
     await query.answer()
     
@@ -155,10 +160,14 @@ async def show_workout_details(update: Update, context: ContextTypes.DEFAULT_TYP
             await query.answer("❌ Тренировка не найдена", show_alert=True)
             return
         
+        # Проверяем, что это тренировка данного тренера
+        if workout.trainer_id != user.id:
+            await query.answer("❌ Это не ваша тренировка", show_alert=True)
+            return
+        
         text = f"📋 *{workout.name}*\n\n"
         text += f"🕐 {workout.datetime.strftime('%d.%m.%Y %H:%M')}\n"
         text += f"⏱ {workout.duration} мин\n"
-        text += f"👤 Тренер: {workout.trainer.full_name}\n"
         text += f"👥 Записалось: *{workout.current_participants}/{workout.max_participants}*\n"
         
         if workout.description:
@@ -184,56 +193,12 @@ async def show_workout_details(update: Update, context: ContextTypes.DEFAULT_TYP
         else:
             text += "\nℹ️ Пока никто не записался"
         
-        text += "\n\n💡 *Для редактирования используйте веб-интерфейс*"
-        
-        keyboard = [[InlineKeyboardButton("« Назад", callback_data='admin_view_workouts:today')]]
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+        keyboard = [[InlineKeyboardButton("« Назад", callback_data='trainer_workouts:today')]]
         
         await query.edit_message_text(
             text,
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode='Markdown'
         )
-
-
-@role_required(UserRole.ADMIN)
-async def show_users_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показать статистику пользователей"""
-    query = update.callback_query
-    await query.answer()
-    
-    user: User = context.user_data.get('current_user')
-    lang = user.language if user else 'ru'
-    
-    async with get_session() as session:
-        from sqlalchemy import func, select
-        from src.models import User as UserModel
-        
-        # Подсчёт пользователей по ролям
-        result = await session.execute(
-            select(UserModel.role, func.count(UserModel.id))
-            .group_by(UserModel.role)
-        )
-        
-        stats = {role.value: 0 for role in UserRole}
-        for role, count in result:
-            stats[role.value] = count
-        
-        # Общее количество
-        total = await session.execute(select(func.count(UserModel.id)))
-        total_count = total.scalar()
-    
-    text = "👥 *Статистика пользователей*\n\n"
-    text += f"Всего: *{total_count}*\n\n"
-    text += f"🏋️ Атлетов: *{stats.get('athlete', 0)}*\n"
-    text += f"🤸‍♀️ Тренеров: *{stats.get('trainer', 0)}*\n"
-    text += f"👑 Админов: *{stats.get('admin', 0)}*\n\n"
-    text += "💡 *Для управления используйте веб-интерфейс*"
-    
-    keyboard = [[InlineKeyboardButton("« Назад", callback_data='admin_menu')]]
-    
-    await query.edit_message_text(
-        text,
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode='Markdown'
-    )
 

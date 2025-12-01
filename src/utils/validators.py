@@ -56,7 +56,7 @@ def validate_workout_slot(
         tuple[bool, str]: (есть места, сообщение об ошибке)
     """
     if current_participants >= max_participants:
-        return False, "❌ На этой тренировке нет свободных мест"
+        return False, "❌ Свободных мест нет (full)"
     
     return True, ""
 

@@ -50,6 +50,26 @@ class BookingRepository:
         )
         return result.scalar_one_or_none()
     
+    async def get_user_workout_booking(
+        self,
+        user_id: int,
+        workout_id: int,
+        status: Optional[BookingStatus] = None
+    ) -> Optional[Booking]:
+        """Получить запись пользователя на конкретную тренировку с фильтром по статусу"""
+        conditions = [
+            Booking.user_id == user_id,
+            Booking.workout_id == workout_id
+        ]
+        
+        if status:
+            conditions.append(Booking.status == status)
+        
+        result = await self.session.execute(
+            select(Booking).where(and_(*conditions))
+        )
+        return result.scalar_one_or_none()
+    
     async def get_user_bookings(
         self,
         user_id: int,

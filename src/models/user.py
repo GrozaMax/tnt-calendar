@@ -72,7 +72,11 @@ class User(Base, TimestampMixin):
         return self.role == UserRole.ADMIN
     
     def is_trainer(self) -> bool:
-        """Проверка, является ли пользователь тренером"""
+        """Проверка, является ли пользователь тренером (строго)"""
+        return self.role == UserRole.TRAINER
+    
+    def has_trainer_permissions(self) -> bool:
+        """Проверка, есть ли у пользователя права тренера (включая админа)"""
         return self.role in (UserRole.TRAINER, UserRole.ADMIN)
     
     def is_athlete(self) -> bool:

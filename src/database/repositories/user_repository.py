@@ -1,7 +1,7 @@
 """
 Репозиторий для работы с пользователями
 """
-from typing import Optional
+from typing import Optional, Dict, Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -90,6 +90,11 @@ class UserRepository:
             await self.session.flush()
         return user
     
+    async def get_all(self) -> list[User]:
+        """Получить всех пользователей"""
+        result = await self.session.execute(select(User))
+        return list(result.scalars().all())
+    
     async def get_all_trainers(self) -> list[User]:
         """Получить всех тренеров"""
         result = await self.session.execute(
@@ -98,4 +103,14 @@ class UserRepository:
             )
         )
         return list(result.scalars().all())
+    
+    async def update(self, user_id: int, data: Dict[str, Any]) -> Optional[User]:
+        """Обновить данные пользователя"""
+        user = await self.get_by_id(user_id)
+        if user:
+            for key, value in data.items():
+                if hasattr(user, key):
+                    setattr(user, key, value)
+            await self.session.flush()
+        return user
 

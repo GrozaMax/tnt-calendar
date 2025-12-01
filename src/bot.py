@@ -34,19 +34,14 @@ from src.handlers.athlete import (
 )
 from src.handlers.admin import (
     show_admin_menu,
-    show_create_schedule_options,
-    create_schedule,
-    show_manage_workouts,
-    list_workouts,
-    show_workouts_by_date,
-    show_manage_users,
-    list_users,
-    show_user_info,
-    set_user_role,
-    show_workout_info_admin,
-    show_workout_participants,
-    confirm_delete_workout,
-    delete_workout_confirmed
+    show_admin_workouts,
+    show_workout_details,
+    show_users_stats
+)
+from src.handlers.trainer import (
+    show_trainer_menu,
+    show_trainer_workouts,
+    show_trainer_workout_info
 )
 from src.utils.decorators import ensure_user_exists
 
@@ -184,7 +179,7 @@ class TelegramBot:
             )
         )
         
-        # === АДМИН-ПАНЕЛЬ ===
+        # === АДМИН-ПАНЕЛЬ (просмотр) ===
         
         # Главное меню админа
         self.application.add_handler(
@@ -194,95 +189,53 @@ class TelegramBot:
             )
         )
         
-        # Создание расписания
+        # Просмотр тренировок
         self.application.add_handler(
             CallbackQueryHandler(
-                self._wrap_with_user_check(show_create_schedule_options),
-                pattern='^admin_create_schedule$'
-            )
-        )
-        self.application.add_handler(
-            CallbackQueryHandler(
-                self._wrap_with_user_check(create_schedule),
-                pattern='^create_schedule:'
+                self._wrap_with_user_check(show_admin_workouts),
+                pattern='^admin_view_workouts:'
             )
         )
         
-        # Управление тренировками
+        # Детали тренировки
         self.application.add_handler(
             CallbackQueryHandler(
-                self._wrap_with_user_check(show_manage_workouts),
-                pattern='^admin_manage_workouts$'
-            )
-        )
-        self.application.add_handler(
-            CallbackQueryHandler(
-                self._wrap_with_user_check(list_workouts),
-                pattern='^admin_list_workouts$'
-            )
-        )
-        self.application.add_handler(
-            CallbackQueryHandler(
-                self._wrap_with_user_check(show_workouts_by_date),
-                pattern='^admin_workouts_date:'
+                self._wrap_with_user_check(show_workout_details),
+                pattern='^admin_workout_details:'
             )
         )
         
-        # Управление пользователями
+        # Статистика пользователей
         self.application.add_handler(
             CallbackQueryHandler(
-                self._wrap_with_user_check(show_manage_users),
-                pattern='^admin_manage_users$'
-            )
-        )
-        self.application.add_handler(
-            CallbackQueryHandler(
-                self._wrap_with_user_check(list_users),
-                pattern='^admin_list_users$'
-            )
-        )
-        self.application.add_handler(
-            CallbackQueryHandler(
-                self._wrap_with_user_check(show_user_info),
-                pattern='^admin_user_info:'
-            )
-        )
-        self.application.add_handler(
-            CallbackQueryHandler(
-                self._wrap_with_user_check(set_user_role),
-                pattern='^admin_set_role:'
+                self._wrap_with_user_check(show_users_stats),
+                pattern='^admin_users_stats$'
             )
         )
         
-        # Информация о тренировке (для админа)
+        # === ПАНЕЛЬ ТРЕНЕРА (просмотр) ===
+        
+        # Главное меню тренера
         self.application.add_handler(
             CallbackQueryHandler(
-                self._wrap_with_user_check(show_workout_info_admin),
-                pattern='^admin_workout_info:'
+                self._wrap_with_user_check(show_trainer_menu),
+                pattern='^trainer_menu$'
             )
         )
         
-        # Список участников тренировки
+        # Просмотр тренировок тренера
         self.application.add_handler(
             CallbackQueryHandler(
-                self._wrap_with_user_check(show_workout_participants),
-                pattern='^admin_workout_participants:'
+                self._wrap_with_user_check(show_trainer_workouts),
+                pattern='^trainer_workouts:'
             )
         )
         
-        # Подтверждение удаления тренировки
+        # Детали тренировки (для тренера)
         self.application.add_handler(
             CallbackQueryHandler(
-                self._wrap_with_user_check(confirm_delete_workout),
-                pattern='^admin_confirm_delete:'
-            )
-        )
-        
-        # Удаление тренировки
-        self.application.add_handler(
-            CallbackQueryHandler(
-                self._wrap_with_user_check(delete_workout_confirmed),
-                pattern='^admin_delete_confirmed:'
+                self._wrap_with_user_check(show_trainer_workout_info),
+                pattern='^trainer_workout_info:'
             )
         )
         

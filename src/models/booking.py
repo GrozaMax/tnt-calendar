@@ -62,6 +62,7 @@ class Booking(Base, TimestampMixin):
             f"workout_id={self.workout_id}, status={self.status.value})>"
         )
     
+    @property
     def is_active(self) -> bool:
         """Проверка, активна ли запись"""
         return self.status == BookingStatus.ACTIVE

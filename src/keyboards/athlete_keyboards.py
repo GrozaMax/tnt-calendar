@@ -8,8 +8,8 @@ from src.models import Workout
 from src.locales import get_text
 
 
-def main_menu_keyboard(lang: str = 'ru', is_admin: bool = False) -> InlineKeyboardMarkup:
-    """Главное меню атлета"""
+def main_menu_keyboard(lang: str = 'ru', is_admin: bool = False, is_trainer: bool = False) -> InlineKeyboardMarkup:
+    """Главное меню атлета (с кнопками для тренеров/админов)"""
     keyboard = [
         [InlineKeyboardButton(
             get_text('menu.schedule', lang),
@@ -34,6 +34,12 @@ def main_menu_keyboard(lang: str = 'ru', is_admin: bool = False) -> InlineKeyboa
         keyboard.insert(2, [InlineKeyboardButton(
             "👑 Админ-панель",
             callback_data='admin_menu'
+        )])
+    # Добавляем кнопку для тренеров (если это не админ)
+    elif is_trainer:
+        keyboard.insert(2, [InlineKeyboardButton(
+            "🤸‍♀️ Панель тренера",
+            callback_data='trainer_menu'
         )])
     
     return InlineKeyboardMarkup(keyboard)

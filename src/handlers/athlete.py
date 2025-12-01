@@ -1,7 +1,7 @@
 """
 Обработчики для атлетов
 """
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -31,7 +31,8 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     text = get_text('common.welcome', lang, name=user.first_name if user else "Атлет")
     is_admin = user and user.is_admin()
-    keyboard = main_menu_keyboard(lang, is_admin=is_admin)
+    is_trainer = user and user.is_trainer() and not user.is_admin()
+    keyboard = main_menu_keyboard(lang, is_admin=is_admin, is_trainer=is_trainer)
     
     if query:
         await query.answer()
@@ -79,7 +80,14 @@ async def show_schedule_for_day(update: Update, context: ContextTypes.DEFAULT_TY
     # Получаем тренировки
     async with get_session() as session:
         workout_repo = WorkoutRepository(session)
-        workouts = await workout_repo.get_by_date(target_date, load_relations=True)
+        all_workouts = await workout_repo.get_by_date(target_date, load_relations=True)
+    
+    # Фильтруем прошедшие тренировки (только для сегодняшнего дня)
+    if day == 'today':
+        now = datetime.now()
+        workouts = [w for w in all_workouts if w.datetime > now]
+    else:
+        workouts = all_workouts
     
     if not workouts:
         text = f"📅 *{day_name}* ({target_date.strftime('%d.%m.%Y')})\n\n"
@@ -123,7 +131,7 @@ async def show_workout_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         is_booked = False
         if user:
             booking = await booking_repo.get_by_user_and_workout(user.id, workout_id)
-            is_booked = booking and booking.is_active()
+            is_booked = booking and booking.is_active
         
         # Формируем текст
         text = f"📋 *{workout.name}*\n\n"
@@ -287,7 +295,7 @@ async def show_booking_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
             name=workout.name,
             datetime=workout.datetime.strftime('%d.%m.%Y %H:%M'),
             trainer=workout.trainer.full_name,
-            status="✅ Активна" if booking.is_active() else "❌ Отменена"
+            status="✅ Активна" if booking.is_active else "❌ Отменена"
         )
         
         keyboard = booking_info_keyboard(booking_id, lang)

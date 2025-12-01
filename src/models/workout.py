@@ -3,8 +3,10 @@
 """
 from datetime import datetime
 from typing import List, TYPE_CHECKING
-from sqlalchemy import String, Integer, DateTime, Text, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import String, Integer, DateTime, Text, ForeignKey, select, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship, column_property
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from src.models.base import Base, TimestampMixin
 
@@ -60,10 +62,35 @@ class Workout(Base, TimestampMixin):
             f"datetime={self.datetime.strftime('%Y-%m-%d %H:%M')})>"
         )
     
-    @property
+    @hybrid_property
     def current_participants(self) -> int:
-        """Текущее количество участников"""
-        return len([b for b in self.bookings if b.is_active()])
+        """
+        Текущее количество участников
+        
+        Использует hybrid property для поддержки как Python, так и SQL выражений
+        """
+        try:
+            # В Python context
+            if hasattr(self, '__dict__') and 'bookings' in self.__dict__:
+                return len([b for b in self.bookings if b.is_active])
+            return 0
+        except Exception:
+            return 0
+    
+    @current_participants.expression
+    @classmethod
+    def current_participants(cls):
+        """SQL выражение для подсчета участников"""
+        from src.models.booking import Booking, BookingStatus
+        return (
+            select(func.count(Booking.id))
+            .where(
+                Booking.workout_id == cls.id,
+                Booking.status == BookingStatus.ACTIVE
+            )
+            .correlate_except(Booking)
+            .scalar_subquery()
+        )
     
     @property
     def has_free_slots(self) -> bool:
@@ -78,4 +105,25 @@ class Workout(Base, TimestampMixin):
     def get_participants_count(self) -> str:
         """Форматированное количество участников"""
         return f"{self.current_participants}/{self.max_participants}"
+    
+    async def get_current_participants_async(self, session: AsyncSession) -> int:
+        """
+        Асинхронное получение количества текущих участников
+        
+        Args:
+            session: SQLAlchemy async session
+            
+        Returns:
+            Количество активных записей
+        """
+        from src.models.booking import Booking, BookingStatus
+        
+        result = await session.execute(
+            select(func.count(Booking.id))
+            .where(
+                Booking.workout_id == self.id,
+                Booking.status == BookingStatus.ACTIVE
+            )
+        )
+        return result.scalar() or 0
 
