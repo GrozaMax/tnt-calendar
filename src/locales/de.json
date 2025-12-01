@@ -1,0 +1,56 @@
+{
+  "menu": {
+    "main": "🏠 Hauptmenü",
+    "schedule": "📅 Zeitplan",
+    "my_bookings": "📋 Meine Buchungen",
+    "settings": "⚙️ Einstellungen",
+    "help": "ℹ️ Hilfe",
+    "back": "◀️ Zurück"
+  },
+  "schedule": {
+    "title": "📅 Zeitplan",
+    "today": "Heute",
+    "tomorrow": "Morgen",
+    "no_workouts": "❌ Keine Trainings an diesem Tag",
+    "select_day": "Wählen Sie einen Tag:",
+    "participants": "👥 Angemeldet: {count}/{max}",
+    "trainer": "👤 Trainer: {name}",
+    "time": "🕐 Zeit: {time}",
+    "duration": "⏱ Dauer: {duration} Min",
+    "full": "❌ Voll"
+  },
+  "booking": {
+    "button_book": "✅ Buchen",
+    "button_cancel": "❌ Buchung stornieren",
+    "success": "✅ Sie haben das Training erfolgreich gebucht!\n\n📋 {name}\n🕐 {datetime}\n👤 Trainer: {trainer}",
+    "cancelled": "✅ Buchung storniert",
+    "already_booked": "ℹ️ Sie sind bereits für dieses Training angemeldet",
+    "limit_reached": "❌ Sie sind bereits für 2 Trainings an diesem Tag angemeldet. Stornieren Sie eines, um ein neues zu buchen.",
+    "no_slots": "❌ Keine verfügbaren Plätze für dieses Training",
+    "time_error": "❌ Buchung für dieses Training nicht verfügbar (nur für heute und morgen)",
+    "error": "❌ Buchungsfehler. Versuchen Sie es später erneut."
+  },
+  "my_bookings": {
+    "title": "📋 Meine Buchungen",
+    "no_bookings": "Sie haben noch keine Trainingsbuchungen",
+    "upcoming": "Kommende Trainings:",
+    "booking_info": "📋 {name}\n🕐 {datetime}\n👤 Trainer: {trainer}\n\nStatus: {status}"
+  },
+  "common": {
+    "welcome": "👋 Hallo, {name}!\n\nIch bin der CrossFit Hub Bot. Ich helfe Ihnen bei der Verwaltung Ihrer Trainingsbuchungen.\n\nWählen Sie eine Aktion aus dem Menü unten:",
+    "help": "ℹ️ *CrossFit Hub Bot Hilfe*\n\n*Hauptfunktionen:*\n• Trainingsplan anzeigen\n• Trainings buchen (max. 2 pro Tag)\n• Buchungen stornieren\n• Ihre Buchungen anzeigen\n\n*Einschränkungen:*\n• Buchung nur für heute und morgen\n• Maximum 2 Buchungen pro Tag\n\nVerwenden Sie den Befehl /start zum Starten",
+    "error": "❌ Ein Fehler ist aufgetreten. Versuchen Sie es später erneut.",
+    "user_not_found": "❌ Benutzer nicht gefunden. Verwenden Sie /start zur Registrierung."
+  },
+  "admin": {
+    "menu": "👑 Admin-Menü",
+    "manage_schedule": "⚙️ Zeitplan verwalten",
+    "manage_users": "👥 Benutzer verwalten"
+  },
+  "trainer": {
+    "menu": "🤸‍♀️ Trainer-Menü",
+    "my_classes": "📊 Meine Kurse",
+    "book_slot": "🗓️ Slot buchen"
+  }
+}
+

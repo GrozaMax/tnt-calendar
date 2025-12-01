@@ -1,0 +1,56 @@
+{
+  "menu": {
+    "main": "🏠 Main Menu",
+    "schedule": "📅 Schedule",
+    "my_bookings": "📋 My Bookings",
+    "settings": "⚙️ Settings",
+    "help": "ℹ️ Help",
+    "back": "◀️ Back"
+  },
+  "schedule": {
+    "title": "📅 Schedule",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "no_workouts": "❌ No workouts for this day",
+    "select_day": "Select a day:",
+    "participants": "👥 Enrolled: {count}/{max}",
+    "trainer": "👤 Trainer: {name}",
+    "time": "🕐 Time: {time}",
+    "duration": "⏱ Duration: {duration} min",
+    "full": "❌ Full"
+  },
+  "booking": {
+    "button_book": "✅ Book",
+    "button_cancel": "❌ Cancel Booking",
+    "success": "✅ You have successfully booked the workout!\n\n📋 {name}\n🕐 {datetime}\n👤 Trainer: {trainer}",
+    "cancelled": "✅ Booking cancelled",
+    "already_booked": "ℹ️ You are already booked for this workout",
+    "limit_reached": "❌ You are already booked for 2 workouts today. Cancel one to book another.",
+    "no_slots": "❌ No available slots for this workout",
+    "time_error": "❌ Booking for this workout is unavailable (booking only for today and tomorrow)",
+    "error": "❌ Booking error. Try again later."
+  },
+  "my_bookings": {
+    "title": "📋 My Bookings",
+    "no_bookings": "You have no workout bookings yet",
+    "upcoming": "Upcoming workouts:",
+    "booking_info": "📋 {name}\n🕐 {datetime}\n👤 Trainer: {trainer}\n\nStatus: {status}"
+  },
+  "common": {
+    "welcome": "👋 Hello, {name}!\n\nI'm the CrossFit Hub bot. I'll help you manage your workout bookings.\n\nChoose an action from the menu below:",
+    "help": "ℹ️ *CrossFit Hub Bot Help*\n\n*Main features:*\n• View workout schedule\n• Book workouts (max 2 per day)\n• Cancel bookings\n• View your bookings\n\n*Restrictions:*\n• Booking only for today and tomorrow\n• Maximum 2 bookings per day\n\nUse /start command to begin",
+    "error": "❌ An error occurred. Try again later.",
+    "user_not_found": "❌ User not found. Use /start to register."
+  },
+  "admin": {
+    "menu": "👑 Admin Menu",
+    "manage_schedule": "⚙️ Manage Schedule",
+    "manage_users": "👥 Manage Users"
+  },
+  "trainer": {
+    "menu": "🤸‍♀️ Trainer Menu",
+    "my_classes": "📊 My Classes",
+    "book_slot": "🗓️ Book Slot"
+  }
+}
+

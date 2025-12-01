@@ -14,12 +14,18 @@ class Config:
     # Telegram Bot Token
     BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
     
-    # Admin IDs
-    ADMIN_IDS = [
+    # Admin Telegram IDs
+    ADMIN_TELEGRAM_IDS = [
         int(admin_id.strip()) 
-        for admin_id in os.getenv('ADMIN_IDS', '').split(',') 
+        for admin_id in os.getenv('ADMIN_TELEGRAM_IDS', '').split(',') 
         if admin_id.strip()
     ]
+    
+    # Database
+    DATABASE_URL = os.getenv(
+        'DATABASE_URL',
+        'sqlite+aiosqlite:///./crossfit_hub.db'
+    )
     
     # Logging
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
@@ -32,5 +38,7 @@ class Config:
                 "TELEGRAM_BOT_TOKEN не установлен. "
                 "Пожалуйста, создайте файл .env на основе .env.example"
             )
+        if not cls.DATABASE_URL:
+            raise ValueError("DATABASE_URL не установлен")
         return True
 
