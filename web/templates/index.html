@@ -118,11 +118,31 @@
 
                 <hr style="margin: 40px 0;">
 
-                <h3>🗑️ Очистка базы данных</h3>
+                <h3>🗓️ Удаление тренировок по диапазону</h3>
+                <p>Удалить тренировки за определённый период (например, одну неделю в середине месяца)</p>
+
+                <div class="form-row" style="display: flex; gap: 20px; margin-bottom: 15px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Дата ОТ</label>
+                        <input type="date" id="deleteRangeFrom" class="form-control">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Дата ДО</label>
+                        <input type="date" id="deleteRangeTo" class="form-control">
+                    </div>
+                </div>
+
+                <button class="btn btn-warning" onclick="deleteWorkoutsByRange()" id="btnDeleteRange">
+                    🗑️ Удалить за период
+                </button>
+
+                <hr style="margin: 40px 0;">
+
+                <h3>🗑️ Полная очистка базы данных</h3>
                 <p style="color: #f44336;"><strong>⚠️ ВНИМАНИЕ:</strong> Это действие удалит ВСЕ тренировки и записи из базы данных!</p>
 
                 <button class="btn btn-danger" onclick="clearAllWorkouts()" id="btnClearAll">
-                    🗑️ Удалить все тренировки
+                    🗑️ Удалить ВСЕ тренировки
                 </button>
 
                 <div class="alert alert-error" style="margin-top: 20px; display: none;" id="clearWarning">

@@ -40,7 +40,7 @@ def can_book_workout(
         tuple[bool, str]: (можно записаться, сообщение об ошибке)
     """
     if bookings_count >= max_bookings_per_day:
-        return False, f"❌ Вы уже записаны на {max_bookings_per_day} тренировки в этот день"
+        return False, f"❌ *Превышен лимит записей!*\n\nВы уже записаны на {max_bookings_per_day} тренировки в этот день.\n\nПопробуйте записаться на другой день или отмените одну из текущих записей."
     
     return True, ""
 
@@ -56,7 +56,7 @@ def validate_workout_slot(
         tuple[bool, str]: (есть места, сообщение об ошибке)
     """
     if current_participants >= max_participants:
-        return False, "❌ Свободных мест нет (full)"
+        return False, f"❌ *Мест нет!*\n\nНа этой тренировке уже {max_participants} участников (максимум).\n\nПопробуйте выбрать другое время или следите за отменами."
     
     return True, ""
 

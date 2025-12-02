@@ -338,6 +338,91 @@ async def get_workout_participants(
         }
 
 
+class DeleteByRangeRequest(BaseModel):
+    """Удаление тренировок по диапазону дат"""
+    date_from: date
+    date_to: date
+
+
+@router.post("/delete-by-range", status_code=status.HTTP_200_OK)
+async def delete_workouts_by_range(
+    request: DeleteByRangeRequest,
+    user: User = Depends(get_current_user)
+):
+    """
+    Удалить тренировки в указанном диапазоне дат
+    
+    ВНИМАНИЕ: Это действие необратимо!
+    Только для админов.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Delete by range called by user {user.id}: {request.date_from} - {request.date_to}")
+    
+    if user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can delete workouts by range"
+        )
+    
+    if request.date_from > request.date_to:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="date_from must be less than or equal to date_to"
+        )
+    
+    from sqlalchemy import delete as sql_delete, func, select as sql_select, and_
+    
+    async with get_session() as session:
+        # Находим тренировки в диапазоне
+        workout_ids_query = sql_select(Workout.id).where(
+            and_(
+                func.date(Workout.datetime) >= request.date_from,
+                func.date(Workout.datetime) <= request.date_to
+            )
+        )
+        result = await session.execute(workout_ids_query)
+        workout_ids = [row[0] for row in result.fetchall()]
+        
+        if not workout_ids:
+            return {
+                "status": "success",
+                "deleted_workouts": 0,
+                "deleted_bookings": 0,
+                "message": "Тренировок в указанном диапазоне не найдено"
+            }
+        
+        # Считаем записи на эти тренировки
+        bookings_count_query = sql_select(func.count(Booking.id)).where(
+            Booking.workout_id.in_(workout_ids)
+        )
+        bookings_result = await session.execute(bookings_count_query)
+        bookings_count = bookings_result.scalar()
+        
+        workouts_count = len(workout_ids)
+        
+        # Удаляем записи
+        await session.execute(
+            sql_delete(Booking).where(Booking.workout_id.in_(workout_ids))
+        )
+        
+        # Удаляем тренировки
+        await session.execute(
+            sql_delete(Workout).where(Workout.id.in_(workout_ids))
+        )
+        
+        await session.commit()
+    
+    return {
+        "status": "success",
+        "deleted_workouts": workouts_count,
+        "deleted_bookings": bookings_count,
+        "date_from": request.date_from.isoformat(),
+        "date_to": request.date_to.isoformat(),
+        "message": f"Удалено {workouts_count} тренировок и {bookings_count} записей за период {request.date_from} - {request.date_to}"
+    }
+
+
 @router.post("/clear-all", status_code=status.HTTP_200_OK)
 async def clear_all_workouts(
     user: User = Depends(get_current_user)

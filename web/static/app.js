@@ -361,6 +361,55 @@ async function bulkCreateSchedule(weeks) {
     }
 }
 
+async function deleteWorkoutsByRange() {
+    const dateFrom = document.getElementById('deleteRangeFrom').value;
+    const dateTo = document.getElementById('deleteRangeTo').value;
+    
+    if (!dateFrom || !dateTo) {
+        showError('Выберите даты ОТ и ДО');
+        return;
+    }
+    
+    if (dateFrom > dateTo) {
+        showError('Дата ОТ должна быть раньше или равна дате ДО');
+        return;
+    }
+    
+    if (!confirm(`⚠️ Удалить тренировки с ${dateFrom} по ${dateTo}?\n\nЭто действие необратимо!`)) {
+        return;
+    }
+    
+    const btn = document.getElementById('btnDeleteRange');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Удаление...';
+    
+    try {
+        const result = await apiRequest('/workouts/delete-by-range', {
+            method: 'POST',
+            body: JSON.stringify({
+                date_from: dateFrom,
+                date_to: dateTo
+            })
+        });
+        
+        showSuccess(`✅ ${result.message}`);
+        
+        // Очищаем поля
+        document.getElementById('deleteRangeFrom').value = '';
+        document.getElementById('deleteRangeTo').value = '';
+        
+        // Обновляем все виды
+        loadTodayWorkouts();
+        loadWeekWorkouts();
+    } catch (error) {
+        showError('Ошибка удаления: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+}
+
 async function clearAllWorkouts() {
     // Двойное подтверждение для критической операции
     if (!confirm('⚠️ ВНИМАНИЕ! Это удалит ВСЕ тренировки и записи!\n\nПродолжить?')) {
@@ -523,7 +572,7 @@ async function loadTodayWorkouts() {
     const container = document.getElementById('todayWorkouts');
     container.innerHTML = '<div class="loading">Загрузка...</div>';
     
-    const today = new Date().toISOString().split('T')[0];
+    const today = formatDateLocal(new Date());
     
     console.log('📅 Загрузка сегодняшних тренировок:', today);
     
@@ -590,6 +639,14 @@ function displayTodayWorkouts(workouts) {
     }).join('');
 }
 
+// Хелпер для форматирования даты в YYYY-MM-DD без UTC-сдвига
+function formatDateLocal(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 // Загрузка тренировок на неделю
 async function loadWeekWorkouts() {
     const container = document.getElementById('weekWorkouts');
@@ -606,11 +663,11 @@ async function loadWeekWorkouts() {
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
     
-    const dateFrom = monday.toISOString().split('T')[0];
-    const dateTo = sunday.toISOString().split('T')[0];
+    const dateFrom = formatDateLocal(monday);
+    const dateTo = formatDateLocal(sunday);
     
     console.log('📅 Загрузка недели:');
-    console.log('  Сегодня:', today.toISOString().split('T')[0], '(день недели:', today.getDay(), ')');
+    console.log('  Сегодня:', formatDateLocal(today), '(день недели:', today.getDay(), ')');
     console.log('  Понедельник:', dateFrom);
     console.log('  Воскресенье:', dateTo);
     
@@ -649,23 +706,21 @@ function displayWeekWorkouts(workouts) {
     
     // Создаём 7 дней (с понедельника по воскресенье)
     const days = [];
-    const mondayDateStr = monday.toISOString().split('T')[0];
     for (let i = 0; i < 7; i++) {
-        // Используем строковое создание даты для избежания проблем с часовыми поясами
-        const [year, month, day] = mondayDateStr.split('-').map(Number);
-        const date = new Date(year, month - 1, day + i);
+        const date = new Date(monday);
+        date.setDate(monday.getDate() + i);
         days.push(date);
     }
     
     console.log('📆 Отображаемые дни:');
     days.forEach((d, i) => {
-        console.log(`  ${i}: ${d.toISOString().split('T')[0]} (${['Вс','Пн','Вт','Ср','Чт','Пт','Сб'][d.getDay()]})`);
+        console.log(`  ${i}: ${formatDateLocal(d)} (${['Вс','Пн','Вт','Ср','Чт','Пт','Сб'][d.getDay()]})`);
     });
     
     const weekdays = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
     
     container.innerHTML = days.map(date => {
-        const dateStr = date.toISOString().split('T')[0];
+        const dateStr = formatDateLocal(date);
         const dayWorkouts = workoutsByDate[dateStr] || [];
         const isToday = date.toDateString() === today.toDateString();
         
@@ -757,6 +812,7 @@ window.deleteWorkout = deleteWorkout;
 window.createWorkout = createWorkout;
 window.updateWorkout = updateWorkout;
 window.bulkCreateSchedule = bulkCreateSchedule;
+window.deleteWorkoutsByRange = deleteWorkoutsByRange;
 window.clearAllWorkouts = clearAllWorkouts;
 window.changeUserRole = changeUserRole;
 window.openModal = openModal;

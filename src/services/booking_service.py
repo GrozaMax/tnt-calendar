@@ -124,7 +124,7 @@ class BookingService:
         return True, message
     
     async def get_user_active_bookings(self, user_id: int):
-        """Получить все активные записи пользователя"""
+        """Получить все активные записи пользователя (отсортированные по дате)"""
         bookings = await self.booking_repo.get_user_bookings(
             user_id,
             status=BookingStatus.ACTIVE,
@@ -137,6 +137,9 @@ class BookingService:
         future_bookings = [
             b for b in bookings if b.workout.datetime > now
         ]
+        
+        # Сортировка по дате/времени тренировки (ближайшие первыми)
+        future_bookings.sort(key=lambda b: b.workout.datetime)
         
         return future_bookings
     

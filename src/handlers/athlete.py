@@ -202,9 +202,25 @@ async def book_workout(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=back_to_main_menu_keyboard(lang)
             )
         else:
-            await query.answer(message, show_alert=True)
-            # Возвращаемся к информации о тренировке
-            await show_workout_info(update, context)
+            # Получаем информацию о тренировке для отображения
+            workout = await workout_repo.get_by_id(workout_id, load_relations=True)
+            
+            # Формируем текст с ошибкой
+            error_text = f"⚠️ *Не удалось записаться*\n\n"
+            error_text += f"{message}\n\n"
+            error_text += "━━━━━━━━━━━━━━━━━━━━\n\n"
+            
+            if workout:
+                error_text += f"📋 *{workout.name}*\n"
+                error_text += f"🕐 {workout.datetime.strftime('%d.%m.%Y %H:%M')}\n"
+                error_text += f"👤 Тренер: {workout.trainer.full_name}\n"
+                error_text += f"👥 Записалось: {workout.current_participants}/{workout.max_participants}\n"
+            
+            await query.edit_message_text(
+                error_text,
+                reply_markup=back_to_main_menu_keyboard(lang),
+                parse_mode='Markdown'
+            )
 
 
 async def cancel_booking_from_workout(update: Update, context: ContextTypes.DEFAULT_TYPE):
