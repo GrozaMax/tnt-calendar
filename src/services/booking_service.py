@@ -123,6 +123,22 @@ class BookingService:
             return {"success": True, "message": message, "booking": booking}
         return True, message
     
+    async def cancel_booking_by_trainer(self, booking_id: int, trainer_id: int) -> tuple[bool, str]:
+        """
+        Отменить запись атлета от имени тренера.
+        Тренер может отменить только запись на свою тренировку.
+        """
+        booking = await self.booking_repo.get_by_id(booking_id, load_relations=True)
+        if not booking:
+            return False, "❌ Запись не найдена"
+        if booking.workout.trainer_id != trainer_id:
+            return False, "❌ Это не ваша тренировка"
+        if not booking.is_active:
+            return False, "ℹ️ Запись уже отменена"
+        booking.cancel()
+        await self.session.commit()
+        return True, "✅ Атлет удалён с тренировки"
+
     async def get_user_active_bookings(self, user_id: int):
         """Получить все активные записи пользователя (отсортированные по дате)"""
         bookings = await self.booking_repo.get_user_bookings(

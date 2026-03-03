@@ -8,6 +8,7 @@ from telegram.ext import ContextTypes
 from src.database import get_session
 from src.database.repositories import WorkoutRepository, BookingRepository, UserRepository
 from src.services.booking_service import BookingService
+from src.services.notification_service import notify_trainer_new_booking, notify_trainer_booking_cancelled
 from src.keyboards.athlete_keyboards import (
     main_menu_keyboard,
     schedule_days_keyboard,
@@ -187,20 +188,31 @@ async def book_workout(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if success:
             # Получаем информацию о тренировке для подтверждения
             workout = await workout_repo.get_by_id(workout_id, load_relations=True)
-            
+
             confirmation_text = get_text(
                 'booking.success',
                 lang,
                 name=workout.name,
                 datetime=workout.datetime.strftime('%d.%m.%Y %H:%M'),
-                trainer=workout.trainer.full_name
+                trainer=workout.trainer.full_name if workout.trainer else 'Не назначен'
             )
-            
+
             await query.answer(get_text('booking.success', lang)[:200], show_alert=True)
             await query.edit_message_text(
                 confirmation_text,
                 reply_markup=back_to_main_menu_keyboard(lang)
             )
+
+            # Уведомляем тренера о новой записи
+            if workout.trainer and workout.trainer.telegram_id:
+                athlete_name = user.full_name
+                await notify_trainer_new_booking(
+                    bot=context.bot,
+                    trainer_telegram_id=workout.trainer.telegram_id,
+                    athlete_name=athlete_name,
+                    workout_name=workout.name,
+                    workout_datetime=workout.datetime.strftime('%d.%m.%Y %H:%M')
+                )
         else:
             # Получаем информацию о тренировке для отображения
             workout = await workout_repo.get_by_id(workout_id, load_relations=True)
@@ -238,24 +250,36 @@ async def cancel_booking_from_workout(update: Update, context: ContextTypes.DEFA
     async with get_session() as session:
         booking_repo = BookingRepository(session)
         booking_service = BookingService(session)
-        
+        workout_repo = WorkoutRepository(session)
+
         # Находим запись
         booking = await booking_repo.get_by_user_and_workout(user.id, workout_id)
-        
+
         if not booking:
             await query.answer("❌ Запись не найдена", show_alert=True)
             return
-        
+
         # Отменяем запись
         success, message = await booking_service.cancel_booking(booking.id, user.id)
-        
+
         await query.answer(message, show_alert=True)
-        
+
         if success:
             await query.edit_message_text(
                 get_text('booking.cancelled', lang),
                 reply_markup=back_to_main_menu_keyboard(lang)
             )
+
+            # Уведомляем тренера об отмене
+            workout = await workout_repo.get_by_id(workout_id, load_relations=True)
+            if workout and workout.trainer and workout.trainer.telegram_id:
+                await notify_trainer_booking_cancelled(
+                    bot=context.bot,
+                    trainer_telegram_id=workout.trainer.telegram_id,
+                    athlete_name=user.full_name,
+                    workout_name=workout.name,
+                    workout_datetime=workout.datetime.strftime('%d.%m.%Y %H:%M')
+                )
         else:
             await show_workout_info(update, context)
 
@@ -331,12 +355,27 @@ async def cancel_booking_from_list(update: Update, context: ContextTypes.DEFAULT
     booking_id = int(booking_id)
     
     async with get_session() as session:
+        booking_repo = BookingRepository(session)
         booking_service = BookingService(session)
+
+        # Получаем данные записи до отмены (для уведомления)
+        booking = await booking_repo.get_by_id(booking_id, load_relations=True)
+
         success, message = await booking_service.cancel_booking(booking_id, user.id)
-        
+
         await query.answer(message, show_alert=True)
-        
+
         if success:
+            # Уведомляем тренера об отмене
+            if booking and booking.workout and booking.workout.trainer and booking.workout.trainer.telegram_id:
+                await notify_trainer_booking_cancelled(
+                    bot=context.bot,
+                    trainer_telegram_id=booking.workout.trainer.telegram_id,
+                    athlete_name=user.full_name,
+                    workout_name=booking.workout.name,
+                    workout_datetime=booking.workout.datetime.strftime('%d.%m.%Y %H:%M')
+                )
+
             # Возвращаемся к списку записей
             context.user_data['temp_callback_data'] = 'my_bookings'
             await show_my_bookings(update, context)

@@ -41,7 +41,10 @@ from src.handlers.admin import (
 from src.handlers.trainer import (
     show_trainer_menu,
     show_trainer_workouts,
-    show_trainer_workout_info
+    show_trainer_workout_info,
+    remove_athlete_from_workout,
+    show_free_slots,
+    assign_trainer_to_workout
 )
 from src.utils.decorators import ensure_user_exists
 
@@ -238,7 +241,31 @@ class TelegramBot:
                 pattern='^trainer_workout_info:'
             )
         )
-        
+
+        # Удаление атлета с тренировки (тренером)
+        self.application.add_handler(
+            CallbackQueryHandler(
+                self._wrap_with_user_check(remove_athlete_from_workout),
+                pattern='^trainer_remove_athlete:'
+            )
+        )
+
+        # Свободные слоты (без тренера)
+        self.application.add_handler(
+            CallbackQueryHandler(
+                self._wrap_with_user_check(show_free_slots),
+                pattern='^trainer_free_slots$'
+            )
+        )
+
+        # Назначение тренера на слот
+        self.application.add_handler(
+            CallbackQueryHandler(
+                self._wrap_with_user_check(assign_trainer_to_workout),
+                pattern='^trainer_assign:'
+            )
+        )
+
         # Обработчик ошибок
         self.application.add_error_handler(error_handler)
         

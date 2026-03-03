@@ -23,7 +23,8 @@
             <button class="tab active" onclick="switchTab('today')">📅 Сегодня</button>
             <button class="tab" onclick="switchTab('week')">🗓️ Неделя</button>
             <button class="tab" onclick="switchTab('users')" id="usersTab">👥 Пользователи</button>
-            <button class="tab" onclick="switchTab('schedule')">⚙️ Управление расписанием</button>
+            <button class="tab" onclick="switchTab('schedule')" id="scheduleTab">⚙️ Управление расписанием</button>
+            <button class="tab" onclick="switchTab('template')" id="templateTab">📋 Шаблон расписания</button>
         </div>
 
         <!-- Вкладка: Сегодня -->
@@ -152,6 +153,65 @@
                 </div>
             </div>
         </div>
+        <!-- Вкладка: Шаблон расписания -->
+        <div id="template" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2>📋 Шаблон недельного расписания</h2>
+                    <button class="btn btn-success" onclick="openAddSlotForm()">➕ Добавить слот</button>
+                </div>
+                <p style="color:#666; margin-bottom:16px;">Шаблон используется при массовом создании расписания. Отредактируйте слоты и нажмите «Создать расписание» на вкладке «Управление расписанием».</p>
+
+                <!-- Форма добавления слота -->
+                <div id="addSlotForm" style="display:none; background:#f8f9fa; padding:16px; border-radius:8px; margin-bottom:20px;">
+                    <h3 style="margin-top:0;">Новый слот</h3>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px;">
+                        <div class="form-group">
+                            <label>День недели</label>
+                            <select id="slotDay" class="form-control">
+                                <option value="0">Понедельник</option>
+                                <option value="1">Вторник</option>
+                                <option value="2">Среда</option>
+                                <option value="3">Четверг</option>
+                                <option value="4">Пятница</option>
+                                <option value="5">Суббота</option>
+                                <option value="6">Воскресенье</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Время (ЧЧ:ММ)</label>
+                            <input type="text" id="slotTime" class="form-control" placeholder="08:00" pattern="\d{2}:\d{2}">
+                        </div>
+                        <div class="form-group">
+                            <label>Название</label>
+                            <input type="text" id="slotName" class="form-control" placeholder="CrossFit">
+                        </div>
+                        <div class="form-group">
+                            <label>Длительность (мин)</label>
+                            <input type="number" id="slotDuration" class="form-control" value="60" min="10" max="300">
+                        </div>
+                        <div class="form-group">
+                            <label>Макс. участников</label>
+                            <input type="number" id="slotMax" class="form-control" value="12" min="1" max="200">
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:10px; margin-top:8px;">
+                        <button class="btn btn-primary" onclick="saveNewSlot()">Сохранить</button>
+                        <button class="btn btn-secondary" onclick="document.getElementById('addSlotForm').style.display='none'">Отмена</button>
+                    </div>
+                </div>
+
+                <div id="templateTable">
+                    <div class="loading">Загрузка шаблона...</div>
+                </div>
+
+                <div style="margin-top:16px;">
+                    <button class="btn btn-warning" onclick="seedTemplateFromFile()" title="Перенести данные из create_weekly_schedule.py в БД (только один раз)">
+                        🔄 Загрузить из файла (первоначальная настройка)
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Модальное окно: Создание тренировки -->
@@ -185,9 +245,18 @@
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label>Максимум участников*</label>
-                    <input type="number" name="max_participants" class="form-control" value="12" min="1" max="100" required>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Максимум участников*</label>
+                        <input type="number" name="max_participants" class="form-control" value="12" min="1" max="100" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Тренер</label>
+                        <select name="trainer_id" class="form-control" id="createTrainerSelect">
+                            <option value="">— Без тренера —</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div style="display: flex; gap: 10px; justify-content: flex-end;">
@@ -231,9 +300,18 @@
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label>Максимум участников*</label>
-                    <input type="number" name="max_participants" class="form-control" min="1" max="100" required>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Максимум участников*</label>
+                        <input type="number" name="max_participants" class="form-control" min="1" max="100" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Тренер</label>
+                        <select name="trainer_id" class="form-control" id="editTrainerSelect">
+                            <option value="">— Без тренера —</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div style="display: flex; gap: 10px; justify-content: flex-end;">
@@ -259,35 +337,6 @@
     </div>
 
     <script src="/static/app.js"></script>
-    <script>
-        // Устанавливаем имя пользователя и роль
-        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-        if (currentUser) {
-            const roleEmoji = {
-                'athlete': '🏋️',
-                'trainer': '🤸‍♀️',
-                'admin': '👑'
-            }[currentUser.role] || '👤';
-            
-            document.getElementById('userName').textContent = `${roleEmoji} ${currentUser.full_name}`;
-            
-            // Скрываем вкладку "Пользователи" для тренеров
-            if (currentUser.role !== 'admin') {
-                document.getElementById('usersTab').style.display = 'none';
-            }
-        } else {
-            document.getElementById('userName').textContent = 'Не авторизован';
-        }
-        
-        // Устанавливаем даты по умолчанию
-        const today = new Date().toISOString().split('T')[0];
-        const weekLater = new Date();
-        weekLater.setDate(weekLater.getDate() + 7);
-        const weekLaterStr = weekLater.toISOString().split('T')[0];
-        
-        document.getElementById('dateFrom').value = today;
-        document.getElementById('dateTo').value = weekLaterStr;
-    </script>
 </body>
 </html>
 

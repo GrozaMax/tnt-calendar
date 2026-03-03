@@ -1,0 +1,26 @@
+services:
+  bot:
+    build: .
+    command: python main.py
+    env_file: .env
+    volumes:
+      - db_data:/app/db
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:////app/db/crossfit_hub.db
+    restart: unless-stopped
+    depends_on: []
+
+  web:
+    build: .
+    command: python run_web.py
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - db_data:/app/db
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:////app/db/crossfit_hub.db
+    restart: unless-stopped
+
+volumes:
+  db_data:

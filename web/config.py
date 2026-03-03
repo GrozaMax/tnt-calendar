@@ -23,6 +23,9 @@ class WebConfig:
     # Токены можно хранить в БД или в переменных окружения
     ADMIN_TOKENS = os.getenv("WEB_ADMIN_TOKENS", "").split(",")
     
+    # Telegram Bot Token (для отправки уведомлений из веба)
+    BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+
     # CORS (если понадобится)
     CORS_ORIGINS = ["*"]
     

@@ -4,6 +4,7 @@
 const API_URL = '/api';
 let authToken = localStorage.getItem('authToken');
 let currentUser = null;
+let trainersList = [];
 
 // Утилиты
 function showError(message) {
@@ -99,7 +100,7 @@ async function login(telegramId, secretCode) {
         currentUser = data.user;
         localStorage.setItem('authToken', authToken);
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        
+        updateUserInfo();
         return true;
     } catch (error) {
         showError(error.message);
@@ -113,6 +114,18 @@ function logout() {
     localStorage.removeItem('authToken');
     localStorage.removeItem('currentUser');
     showLoginPage();
+}
+
+function updateUserInfo() {
+    if (!currentUser) return;
+    const roleLabels = { 'admin': 'Администратор', 'trainer': 'Тренер', 'athlete': 'Атлет' };
+    const roleClasses = { 'admin': 'role-admin', 'trainer': 'role-trainer', 'athlete': 'role-athlete' };
+    const label = roleLabels[currentUser.role] || currentUser.role;
+    const cls = roleClasses[currentUser.role] || '';
+    const el = document.getElementById('userName');
+    if (el) {
+        el.innerHTML = `<span class="user-name">${currentUser.full_name}</span><span class="role-badge ${cls}">${label}</span>`;
+    }
 }
 
 // Тренировки
@@ -293,7 +306,7 @@ async function viewWorkout(workoutId) {
             ` : '<div style="text-align: center; padding: 40px; color: #999;">📋 Пока никто не записался</div>'}
             
             <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #eee; display: flex; gap: 10px;">
-                ${currentUser.role === 'admin' || (currentUser.role === 'trainer' && workout.trainer_id === currentUser.id) ? `
+                ${currentUser.role === 'admin' ? `
                     <button class="btn btn-secondary" onclick="closeModal('viewWorkoutModal'); editWorkout(${workout.id})">✏️ Редактировать</button>
                     <button class="btn btn-danger" onclick="closeModal('viewWorkoutModal'); deleteWorkout(${workout.id})">🗑️ Удалить</button>
                 ` : ''}
@@ -564,7 +577,194 @@ function switchTab(tabName) {
         loadWeekWorkouts();
     } else if (tabName === 'users') {
         loadUsers();
+    } else if (tabName === 'template') {
+        loadTemplate();
     }
+}
+
+// ─── Шаблон расписания ────────────────────────────────────────────────────────
+
+const DAY_NAMES = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+
+async function loadTemplate() {
+    const container = document.getElementById('templateTable');
+    container.innerHTML = '<div class="loading">Загрузка...</div>';
+    try {
+        const slots = await apiRequest('/schedule-template/');
+        displayTemplate(slots);
+    } catch (e) {
+        container.innerHTML = `<div class="alert alert-error">Ошибка: ${e.message}</div>`;
+    }
+}
+
+function displayTemplate(slots) {
+    const container = document.getElementById('templateTable');
+    if (!slots.length) {
+        container.innerHTML = '<div style="padding:20px;color:#999;">Шаблон пуст. Добавьте слоты или загрузите из файла.</div>';
+        return;
+    }
+
+    // Группируем по дням
+    const byDay = {};
+    slots.forEach(s => {
+        if (!byDay[s.day_of_week]) byDay[s.day_of_week] = [];
+        byDay[s.day_of_week].push(s);
+    });
+
+    let html = '';
+    for (let day = 0; day <= 6; day++) {
+        const daySlots = byDay[day] || [];
+        if (!daySlots.length) continue;
+        html += `<div style="margin-bottom:20px;">
+            <h3 style="margin-bottom:8px; color:#555;">${DAY_NAMES[day]}</h3>
+            <table style="width:100%; border-collapse:collapse; font-size:14px;">
+                <thead>
+                    <tr style="background:#f0f0f0;">
+                        <th style="padding:8px; text-align:left; border:1px solid #ddd;">Время</th>
+                        <th style="padding:8px; text-align:left; border:1px solid #ddd;">Название</th>
+                        <th style="padding:8px; text-align:center; border:1px solid #ddd;">Мин</th>
+                        <th style="padding:8px; text-align:center; border:1px solid #ddd;">Макс</th>
+                        <th style="padding:8px; text-align:center; border:1px solid #ddd;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${daySlots.map(s => `
+                    <tr id="slot-row-${s.id}">
+                        <td style="padding:8px; border:1px solid #ddd;">${s.time}</td>
+                        <td style="padding:8px; border:1px solid #ddd;">${s.name}</td>
+                        <td style="padding:8px; border:1px solid #ddd; text-align:center;">${s.duration}</td>
+                        <td style="padding:8px; border:1px solid #ddd; text-align:center;">${s.max_participants}</td>
+                        <td style="padding:8px; border:1px solid #ddd; text-align:center; white-space:nowrap;">
+                            <button class="btn btn-secondary btn-sm" onclick="editTemplateSlot(${s.id}, '${s.time}', '${s.name.replace(/'/g, "\\'")}', ${s.duration}, ${s.max_participants}, ${s.day_of_week})">✏️</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteTemplateSlot(${s.id})">🗑️</button>
+                        </td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+        </div>`;
+    }
+    container.innerHTML = html;
+}
+
+function openAddSlotForm() {
+    document.getElementById('addSlotForm').style.display = 'block';
+}
+
+async function saveNewSlot() {
+    const day = parseInt(document.getElementById('slotDay').value);
+    const time = document.getElementById('slotTime').value.trim();
+    const name = document.getElementById('slotName').value.trim();
+    const duration = parseInt(document.getElementById('slotDuration').value);
+    const max = parseInt(document.getElementById('slotMax').value);
+
+    if (!time || !name) { showError('Заполните время и название'); return; }
+    if (!/^\d{2}:\d{2}$/.test(time)) { showError('Время должно быть в формате ЧЧ:ММ'); return; }
+
+    try {
+        await apiRequest('/schedule-template/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({day_of_week: day, time, name, duration, max_participants: max}),
+        });
+        document.getElementById('addSlotForm').style.display = 'none';
+        showSuccess('Слот добавлен');
+        loadTemplate();
+    } catch (e) {
+        showError(e.message);
+    }
+}
+
+function editTemplateSlot(slotId, time, name, duration, maxParticipants, dayOfWeek) {
+    const row = document.getElementById(`slot-row-${slotId}`);
+    if (!row) return;
+    row.innerHTML = `
+        <td style="padding:8px; border:1px solid #ddd;">
+            <input type="text" id="edit-time-${slotId}" value="${time}" style="width:60px; padding:4px;" pattern="\\d{2}:\\d{2}">
+        </td>
+        <td style="padding:8px; border:1px solid #ddd;">
+            <input type="text" id="edit-name-${slotId}" value="${name}" style="width:100%; padding:4px;">
+        </td>
+        <td style="padding:8px; border:1px solid #ddd; text-align:center;">
+            <input type="number" id="edit-dur-${slotId}" value="${duration}" style="width:60px; padding:4px;" min="10" max="300">
+        </td>
+        <td style="padding:8px; border:1px solid #ddd; text-align:center;">
+            <input type="number" id="edit-max-${slotId}" value="${maxParticipants}" style="width:60px; padding:4px;" min="1" max="200">
+        </td>
+        <td style="padding:8px; border:1px solid #ddd; text-align:center; white-space:nowrap;">
+            <button class="btn btn-success btn-sm" onclick="updateTemplateSlot(${slotId})">💾</button>
+            <button class="btn btn-secondary btn-sm" onclick="loadTemplate()">✖</button>
+        </td>
+    `;
+}
+
+async function updateTemplateSlot(slotId) {
+    const time = document.getElementById(`edit-time-${slotId}`).value.trim();
+    const name = document.getElementById(`edit-name-${slotId}`).value.trim();
+    const duration = parseInt(document.getElementById(`edit-dur-${slotId}`).value);
+    const maxParticipants = parseInt(document.getElementById(`edit-max-${slotId}`).value);
+
+    if (!time || !name) { showError('Заполните время и название'); return; }
+    if (!/^\d{2}:\d{2}$/.test(time)) { showError('Время должно быть в формате ЧЧ:ММ'); return; }
+
+    try {
+        await apiRequest(`/schedule-template/${slotId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ time, name, duration, max_participants: maxParticipants }),
+        });
+        showSuccess('Слот обновлён');
+        loadTemplate();
+    } catch (e) {
+        showError(e.message);
+    }
+}
+
+async function deleteTemplateSlot(slotId) {
+    if (!confirm('Удалить этот слот из шаблона?')) return;
+    try {
+        await apiRequest(`/schedule-template/${slotId}`, {method: 'DELETE'});
+        showSuccess('Слот удалён');
+        loadTemplate();
+    } catch (e) {
+        showError(e.message);
+    }
+}
+
+async function seedTemplateFromFile() {
+    if (!confirm('Загрузить шаблон из create_weekly_schedule.py? Действие пропускается, если шаблон уже заполнен.')) return;
+    try {
+        const result = await apiRequest('/schedule-template/seed-from-file', {method: 'POST'});
+        showSuccess(result.message || `Создано ${result.created} слотов`);
+        loadTemplate();
+    } catch (e) {
+        showError(e.message);
+    }
+}
+
+// ─── Список тренеров (для dropdown) ─────────────────────────────────────────
+
+async function loadTrainers() {
+    if (currentUser.role !== 'admin') return;
+    try {
+        const trainers = await apiRequest('/users/?role=trainer');
+        const admins = await apiRequest('/users/?role=admin');
+        trainersList = [...admins, ...trainers];
+        populateTrainerSelects();
+    } catch (e) {
+        console.warn('Не удалось загрузить список тренеров:', e.message);
+    }
+}
+
+function populateTrainerSelects() {
+    const selects = document.querySelectorAll('#createTrainerSelect, #editTrainerSelect');
+    selects.forEach(sel => {
+        const currentValue = sel.value;
+        sel.innerHTML = '<option value="">— Без тренера —</option>';
+        trainersList.forEach(t => {
+            const roleLabel = t.role === 'admin' ? ' (админ)' : '';
+            sel.innerHTML += `<option value="${t.id}">${t.full_name}${roleLabel}</option>`;
+        });
+        sel.value = currentValue;
+    });
 }
 
 // Загрузка тренировок на сегодня
@@ -819,6 +1019,13 @@ window.openModal = openModal;
 window.closeModal = closeModal;
 window.switchTab = switchTab;
 window.logout = logout;
+window.updateUserInfo = updateUserInfo;
+window.openAddSlotForm = openAddSlotForm;
+window.saveNewSlot = saveNewSlot;
+window.editTemplateSlot = editTemplateSlot;
+window.updateTemplateSlot = updateTemplateSlot;
+window.deleteTemplateSlot = deleteTemplateSlot;
+window.seedTemplateFromFile = seedTemplateFromFile;
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
@@ -835,7 +1042,24 @@ document.addEventListener('DOMContentLoaded', () => {
         showLoginPage();
         return;
     }
-    
+
+    updateUserInfo();
+
+    // Скрываем элементы управления для тренеров (только admin видит полный интерфейс)
+    if (currentUser.role !== 'admin') {
+        // Кнопки "Создать тренировку" в шапках вкладок
+        document.querySelectorAll('[onclick="openModal(\'createWorkoutModal\')"]').forEach(el => el.style.display = 'none');
+        // Вкладка "Управление расписанием" (bulk create, delete)
+        const scheduleTab = document.getElementById('scheduleTab');
+        if (scheduleTab) scheduleTab.style.display = 'none';
+        // Вкладка "Пользователи"
+        const usersTab = document.getElementById('usersTab');
+        if (usersTab) usersTab.style.display = 'none';
+        // Вкладка "Шаблон расписания"
+        const templateTab = document.getElementById('templateTab');
+        if (templateTab) templateTab.style.display = 'none';
+    }
+
     // Обработчики форм
     const createForm = document.getElementById('createWorkoutForm');
     if (createForm) {

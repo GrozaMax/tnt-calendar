@@ -9,7 +9,7 @@ WEEKLY_SCHEDULE = {
         {"time": "08:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "09:30", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "12:30", "name": "CrossFit", "duration": 60, "max_participants": 12},
-        {"time": "14:00", "name": "CrossFit Beginners", "duration": 60, "max_participants": 15},
+        {"time": "14:00", "name": "CrossFit pupa", "duration": 60, "max_participants": 15},
         {"time": "17:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "18:30", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "20:00", "name": "CrossFit", "duration": 60, "max_participants": 12},

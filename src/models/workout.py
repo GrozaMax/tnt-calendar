@@ -38,10 +38,10 @@ class Workout(Base, TimestampMixin):
         default=999,
         nullable=False
     )
-    trainer_id: Mapped[int] = mapped_column(
+    trainer_id: Mapped[int | None] = mapped_column(
         Integer,
         ForeignKey('users.id'),
-        nullable=False
+        nullable=True
     )
     
     # Relationships

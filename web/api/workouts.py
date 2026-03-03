@@ -43,8 +43,8 @@ class WorkoutResponse(BaseModel):
     duration: int
     max_participants: int
     current_participants: int
-    trainer_id: int
-    trainer_name: str
+    trainer_id: Optional[int]
+    trainer_name: Optional[str]
     created_at: datetime
     updated_at: datetime
     
@@ -159,17 +159,17 @@ async def create_workout(
     async with get_session() as session:
         workout_repo = WorkoutRepository(session)
         
+        # Только администраторы могут создавать тренировки
+        if user.role == UserRole.TRAINER:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only admins can create workouts"
+            )
+
         # Если trainer_id не указан, используем текущего пользователя
         trainer_id = workout_data.trainer_id
         if not trainer_id:
             trainer_id = user.id
-        
-        # Тренер может создавать только для себя
-        if user.role == UserRole.TRAINER and trainer_id != user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Trainers can only create workouts for themselves"
-            )
         
         # Создаём тренировку
         workout = await workout_repo.create(
@@ -219,19 +219,15 @@ async def update_workout(
                 detail="Workout not found"
             )
         
-        # Тренер может редактировать только свои тренировки
-        if user.role == UserRole.TRAINER and workout.trainer_id != user.id:
+        # Только администраторы могут редактировать тренировки
+        if user.role == UserRole.TRAINER:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="You can only edit your own workouts"
+                detail="Only admins can edit workouts"
             )
-        
+
         # Обновляем данные
         update_data = workout_data.model_dump(exclude_unset=True)
-        
-        # Тренер не может менять trainer_id
-        if user.role == UserRole.TRAINER and 'trainer_id' in update_data:
-            del update_data['trainer_id']
         
         workout = await workout_repo.update(workout_id, **update_data)
         await session.commit()
@@ -262,30 +258,55 @@ async def delete_workout(
     """Удалить тренировку"""
     async with get_session() as session:
         workout_repo = WorkoutRepository(session)
-        workout = await workout_repo.get_by_id(workout_id)
-        
+        booking_repo = BookingRepository(session)
+        workout = await workout_repo.get_by_id(workout_id, load_relations=True)
+
         if not workout:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Workout not found"
             )
-        
-        # Тренер может удалять только свои тренировки
-        if user.role == UserRole.TRAINER and workout.trainer_id != user.id:
+
+        # Только администраторы могут удалять тренировки
+        if user.role == UserRole.TRAINER:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="You can only delete your own workouts"
+                detail="Only admins can delete workouts"
             )
-        
+
+        # Собираем Telegram ID атлетов с активными записями до удаления
+        from src.models import BookingStatus
+        active_bookings = await booking_repo.get_workout_bookings(
+            workout_id, status=BookingStatus.ACTIVE, load_relations=True
+        )
+        athlete_telegram_ids = [
+            b.user.telegram_id for b in active_bookings
+            if b.user and b.user.telegram_id
+        ]
+        workout_name = workout.name
+        workout_dt = workout.datetime.strftime('%d.%m.%Y %H:%M')
+
         success = await workout_repo.delete(workout_id)
-        
+
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to delete workout"
             )
-        
+
         await session.commit()
+
+    # Уведомляем атлетов (после коммита, вне сессии)
+    if athlete_telegram_ids:
+        from web.utils.notifications import notify_athletes_workout_cancelled
+        from web.config import WebConfig
+        import asyncio
+        asyncio.create_task(notify_athletes_workout_cancelled(
+            token=WebConfig.BOT_TOKEN,
+            athlete_telegram_ids=athlete_telegram_ids,
+            workout_name=workout_name,
+            workout_datetime=workout_dt
+        ))
 
 
 @router.get("/{workout_id}/participants")
@@ -490,37 +511,47 @@ async def bulk_create_schedule(
             detail="Only admins can bulk create schedules"
         )
     
-    # Импортируем шаблон расписания
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-    from create_weekly_schedule import WEEKLY_SCHEDULE
-    
+    import logging
+    logger = logging.getLogger(__name__)
+
     async with get_session() as session:
+        from src.database.repositories import ScheduleTemplateRepository
         workout_repo = WorkoutRepository(session)
-        
+        template_repo = ScheduleTemplateRepository(session)
+
+        # Загружаем шаблон из БД
+        all_slots = await template_repo.get_all()
+        if not all_slots:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Шаблон расписания пуст. Заполните его в разделе 'Шаблон расписания'."
+            )
+
+        # Группируем слоты по дням недели
+        WEEKLY_SCHEDULE: dict = {}
+        for slot in all_slots:
+            WEEKLY_SCHEDULE.setdefault(slot.day_of_week, []).append({
+                "time": slot.time,
+                "name": slot.name,
+                "duration": slot.duration,
+                "max_participants": slot.max_participants,
+            })
+
         # Определяем тренера
         trainer_id = request.trainer_id if request.trainer_id else user.id
-        
+
         # ВАЖНО: Начинаем с понедельника текущей недели
-        import logging
-        logger = logging.getLogger(__name__)
-        
         today = datetime.now().date()
-        # Вычисляем сдвиг до понедельника (0 = понедельник)
-        days_since_monday = today.weekday()  # 0=Пн, 1=Вт, 2=Ср, ..., 6=Вс
+        days_since_monday = today.weekday()
         start_date = today - timedelta(days=days_since_monday)
-        
+
         logger.info(f"📅 Создание расписания:")
         logger.info(f"  Сегодня: {today} ({['Пн','Вт','Ср','Чт','Пт','Сб','Вс'][today.weekday()]})")
-        logger.info(f"  Дней с понедельника: {days_since_monday}")
-        logger.info(f"  Начало расписания: {start_date} ({['Пн','Вт','Ср','Чт','Пт','Сб','Вс'][start_date.weekday()]})")
+        logger.info(f"  Начало расписания: {start_date}")
         logger.info(f"  Недель для создания: {request.weeks}")
-        
+
         total_created = 0
         total_skipped = 0
-        
-        # Создаём расписание
         created_by_date = {}  # Для отладки
         
         for week in range(request.weeks):
