@@ -21,10 +21,11 @@ class Config:
         if admin_id.strip()
     ]
     
-    # Database
-    DATABASE_URL = os.getenv(
-        'DATABASE_URL',
-        'sqlite+aiosqlite:///./crossfit_hub.db'
+    # Database — Railway выдаёт postgresql://, конвертируем в asyncpg
+    _raw_db_url = os.getenv('DATABASE_URL', 'sqlite+aiosqlite:///./crossfit_hub.db')
+    DATABASE_URL = (
+        _raw_db_url.replace('postgresql://', 'postgresql+asyncpg://', 1)
+        if _raw_db_url.startswith('postgresql://') else _raw_db_url
     )
     
     # Logging

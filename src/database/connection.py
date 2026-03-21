@@ -23,20 +23,12 @@ engine: AsyncEngine = create_async_engine(
     future=True,
 )
 
-# Включаем foreign keys для SQLite
-@event.listens_for(engine.sync_engine, "connect")
-def set_sqlite_pragma(dbapi_conn, connection_record):
-    """Включаем foreign keys для SQLite при каждом подключении"""
-    import logging
-    logger = logging.getLogger(__name__)
-    
-    if "sqlite" in Config.DATABASE_URL:
+# Включаем foreign keys для SQLite (пропускаем для PostgreSQL)
+if "sqlite" in Config.DATABASE_URL:
+    @event.listens_for(engine.sync_engine, "connect")
+    def set_sqlite_pragma(dbapi_conn, connection_record):
         cursor = dbapi_conn.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
-        # Проверяем, что включилось
-        cursor.execute("PRAGMA foreign_keys")
-        result = cursor.fetchone()
-        logger.info(f"SQLite PRAGMA foreign_keys установлен: {result[0] if result else 'неизвестно'}")
         cursor.close()
 
 # Session maker
@@ -48,7 +40,9 @@ async_session_maker = async_sessionmaker(
 
 
 async def _migrate_workouts_trainer_nullable() -> None:
-    """Делает workouts.trainer_id nullable, если БД была создана со старой схемой (NOT NULL)."""
+    """Делает workouts.trainer_id nullable для SQLite (только если БД создана со старой схемой)."""
+    if "sqlite" not in Config.DATABASE_URL:
+        return  # PostgreSQL — DDL через create_all, миграция не нужна
     import logging
     from sqlalchemy import text
     logger = logging.getLogger(__name__)
