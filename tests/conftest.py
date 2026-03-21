@@ -3,7 +3,9 @@
 """
 import asyncio
 import pytest
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
+from unittest.mock import patch
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
@@ -151,70 +153,68 @@ async def test_booking(booking_repo, test_workout, test_athlete, db_session):
 
 # API тесты - моки и клиент
 
-@pytest.fixture
-def override_get_session(db_session):
-    """Переопределяем get_session для API тестов"""
-    async def _get_session_override():
+_API_MODULES = [
+    'web.api.workouts',
+    'web.api.users',
+    'web.api.schedule_template',
+]
+
+
+def _make_session_patcher(db_session):
+    """Создаёт контекстный менеджер, который патчит get_session во всех API модулях."""
+    @asynccontextmanager
+    async def _mock():
         yield db_session
-    return _get_session_override
+
+    patches = [patch(f'{mod}.get_session', _mock) for mod in _API_MODULES]
+
+    class _Patcher:
+        def __enter__(self):
+            for p in patches:
+                p.start()
+            return self
+        def __exit__(self, *_):
+            for p in patches:
+                p.stop()
+
+    return _Patcher()
 
 
 @pytest.fixture
-def override_get_current_user_admin(test_admin):
-    """Переопределяем get_current_user для админа"""
-    async def _get_current_user_override():
-        return test_admin
-    return _get_current_user_override
-
-
-@pytest.fixture
-def override_get_current_user_trainer(test_trainer):
-    """Переопределяем get_current_user для тренера"""
-    async def _get_current_user_override():
-        return test_trainer
-    return _get_current_user_override
-
-
-@pytest.fixture
-def override_get_current_user_athlete(test_athlete):
-    """Переопределяем get_current_user для атлета"""
-    async def _get_current_user_override():
-        return test_athlete
-    return _get_current_user_override
-
-
-@pytest.fixture
-def api_client_admin(override_get_session, override_get_current_user_admin):
+def api_client_admin(db_session, test_admin):
     """Тестовый API клиент с правами админа"""
-    app.dependency_overrides[get_session] = override_get_session
-    app.dependency_overrides[get_current_user] = override_get_current_user_admin
-    
-    client = TestClient(app)
-    yield client
-    
+    async def _user():
+        return test_admin
+
+    app.dependency_overrides[get_current_user] = _user
+    with _make_session_patcher(db_session):
+        client = TestClient(app)
+        yield client
     app.dependency_overrides.clear()
 
 
 @pytest.fixture
-def api_client_trainer(override_get_session, override_get_current_user_trainer):
+def api_client_trainer(db_session, test_trainer):
     """Тестовый API клиент с правами тренера"""
-    app.dependency_overrides[get_session] = override_get_session
-    app.dependency_overrides[get_current_user] = override_get_current_user_trainer
-    
-    client = TestClient(app)
-    yield client
-    
+    async def _user():
+        return test_trainer
+
+    app.dependency_overrides[get_current_user] = _user
+    with _make_session_patcher(db_session):
+        client = TestClient(app)
+        yield client
     app.dependency_overrides.clear()
 
 
 @pytest.fixture
-def api_client_athlete(override_get_session, override_get_current_user_athlete):
+def api_client_athlete(db_session, test_athlete):
     """Тестовый API клиент с правами атлета"""
-    app.dependency_overrides[get_session] = override_get_session
-    app.dependency_overrides[get_current_user] = override_get_current_user_athlete
-    
-    client = TestClient(app)
-    yield client
-    
+    async def _user():
+        return test_athlete
+
+    app.dependency_overrides[get_current_user] = _user
+    with _make_session_patcher(db_session):
+        client = TestClient(app)
+        yield client
     app.dependency_overrides.clear()
 
