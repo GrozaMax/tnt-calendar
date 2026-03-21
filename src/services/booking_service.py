@@ -55,6 +55,14 @@ class BookingService:
                 await self.session.commit()
                 return True, "✅ Запись восстановлена успешно", existing_booking
         
+        # Проверка дневного лимита (макс. 2 тренировки в день)
+        day_bookings = await self.booking_repo.get_active_bookings_by_date(
+            user_id, workout.datetime.date()
+        )
+        can_book, limit_error = can_book_workout(len(day_bookings))
+        if not can_book:
+            return False, limit_error, None
+
         # Проверка свободных мест - используем прямой подсчет из БД
         current_count = await workout.get_current_participants_async(self.session)
         has_slots, slots_error = validate_workout_slot(

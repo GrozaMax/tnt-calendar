@@ -191,11 +191,13 @@ class TestBookingService:
     async def test_booking_limit_error_message(self, db_session, workout_repo, test_trainer, test_athlete):
         """Тест сообщения об ошибке при превышении лимита записей в день"""
         # Создаем 3 тренировки на один день (сегодня)
+        # Use fixed time tomorrow morning so all 3 workouts land on the same day
+        base_dt = (datetime.now() + timedelta(days=1)).replace(hour=8, minute=0, second=0, microsecond=0)
         workouts = []
         for i in range(3):
             workout = await workout_repo.create(
                 name=f"Workout {i}",
-                datetime=datetime.now() + timedelta(hours=i+2),
+                datetime=base_dt + timedelta(hours=i),
                 max_participants=10,
                 trainer_id=test_trainer.id
             )
