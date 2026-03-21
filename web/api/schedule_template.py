@@ -112,19 +112,20 @@ async def delete_slot(slot_id: int, user: User = Depends(get_current_user)):
 
 
 @router.post("/seed-from-file", status_code=status.HTTP_200_OK)
-async def seed_from_file(user: User = Depends(get_current_user)):
+async def seed_from_file(force: bool = False, user: User = Depends(get_current_user)):
     """
     Перенести шаблон из create_weekly_schedule.py в базу данных.
-    Выполняется один раз при первоначальной настройке.
-    Пропускает если шаблон уже заполнен.
+    force=true — очищает существующий шаблон перед загрузкой.
     """
     _require_admin(user)
     from create_weekly_schedule import WEEKLY_SCHEDULE
     async with get_session() as session:
         repo = ScheduleTemplateRepository(session)
         count = await repo.count()
-        if count > 0:
-            return {"status": "skipped", "message": f"Шаблон уже содержит {count} слотов"}
+        if count > 0 and not force:
+            return {"status": "skipped", "message": f"Шаблон уже содержит {count} слотов. Используйте force=true для перезаписи."}
+        if force:
+            await repo.delete_all()
         total = 0
         for day_of_week, slots in WEEKLY_SCHEDULE.items():
             for slot in slots:

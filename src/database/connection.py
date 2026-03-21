@@ -47,6 +47,42 @@ async_session_maker = async_sessionmaker(
 )
 
 
+async def _migrate_workouts_trainer_nullable() -> None:
+    """Делает workouts.trainer_id nullable, если БД была создана со старой схемой (NOT NULL)."""
+    import logging
+    from sqlalchemy import text
+    logger = logging.getLogger(__name__)
+
+    async with engine.connect() as conn:
+        result = await conn.execute(text("PRAGMA table_info(workouts)"))
+        cols = {row[1]: row for row in result.fetchall()}
+        if "trainer_id" not in cols or cols["trainer_id"][3] == 0:
+            return  # уже nullable — миграция не нужна
+
+    logger.info("Запуск миграции: workouts.trainer_id → nullable")
+    async with engine.begin() as conn:
+        await conn.execute(text("""
+            CREATE TABLE workouts_migration_temp (
+                id         INTEGER  NOT NULL PRIMARY KEY,
+                name       VARCHAR(255) NOT NULL,
+                description TEXT,
+                datetime   DATETIME NOT NULL,
+                duration   INTEGER  NOT NULL,
+                max_participants INTEGER NOT NULL,
+                trainer_id INTEGER  REFERENCES users(id),
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL
+            )
+        """))
+        await conn.execute(text("INSERT INTO workouts_migration_temp SELECT * FROM workouts"))
+        await conn.execute(text("DROP TABLE workouts"))
+        await conn.execute(text("ALTER TABLE workouts_migration_temp RENAME TO workouts"))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_workouts_datetime ON workouts (datetime)"
+        ))
+    logger.info("Миграция завершена: workouts.trainer_id теперь nullable")
+
+
 async def init_db() -> None:
     """
     Инициализация базы данных.
@@ -54,6 +90,7 @@ async def init_db() -> None:
     """
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    await _migrate_workouts_trainer_nullable()
 
 
 @asynccontextmanager

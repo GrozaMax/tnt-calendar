@@ -144,7 +144,7 @@ class WorkoutRepository:
             return None
         
         for key, value in kwargs.items():
-            if hasattr(workout, key) and value is not None:
+            if hasattr(workout, key):
                 setattr(workout, key, value)
         
         await self.session.flush()

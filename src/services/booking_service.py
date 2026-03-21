@@ -55,15 +55,6 @@ class BookingService:
                 await self.session.commit()
                 return True, "✅ Запись восстановлена успешно", existing_booking
         
-        # Проверка лимита записей в день (максимум 2)
-        workout_date = workout.datetime.date()
-        bookings_count = await self.booking_repo.count_active_bookings_by_date(
-            user_id, workout_date
-        )
-        can_book, limit_error = can_book_workout(bookings_count)
-        if not can_book:
-            return False, limit_error, None
-        
         # Проверка свободных мест - используем прямой подсчет из БД
         current_count = await workout.get_current_participants_async(self.session)
         has_slots, slots_error = validate_workout_slot(
@@ -123,15 +114,15 @@ class BookingService:
             return {"success": True, "message": message, "booking": booking}
         return True, message
     
-    async def cancel_booking_by_trainer(self, booking_id: int, trainer_id: int) -> tuple[bool, str]:
+    async def cancel_booking_by_trainer(self, booking_id: int, trainer_id: int, is_admin: bool = False) -> tuple[bool, str]:
         """
-        Отменить запись атлета от имени тренера.
-        Тренер может отменить только запись на свою тренировку.
+        Отменить запись атлета от имени тренера (или администратора).
+        Тренер может отменить только запись на свою тренировку; админ — на любую.
         """
         booking = await self.booking_repo.get_by_id(booking_id, load_relations=True)
         if not booking:
             return False, "❌ Запись не найдена"
-        if booking.workout.trainer_id != trainer_id:
+        if not is_admin and booking.workout.trainer_id != trainer_id:
             return False, "❌ Это не ваша тренировка"
         if not booking.is_active:
             return False, "ℹ️ Запись уже отменена"

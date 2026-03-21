@@ -25,6 +25,7 @@
             <button class="tab" onclick="switchTab('users')" id="usersTab">👥 Пользователи</button>
             <button class="tab" onclick="switchTab('schedule')" id="scheduleTab">⚙️ Управление расписанием</button>
             <button class="tab" onclick="switchTab('template')" id="templateTab">📋 Шаблон расписания</button>
+            <button class="tab" onclick="switchTab('scheduleImage')" id="scheduleImageTab">📸 Картинка расписания</button>
         </div>
 
         <!-- Вкладка: Сегодня -->
@@ -206,10 +207,35 @@
                 </div>
 
                 <div style="margin-top:16px;">
-                    <button class="btn btn-warning" onclick="seedTemplateFromFile()" title="Перенести данные из create_weekly_schedule.py в БД (только один раз)">
-                        🔄 Загрузить из файла (первоначальная настройка)
+                    <button class="btn btn-warning" onclick="seedTemplateFromFileForce()" title="Очистить шаблон и загрузить заново из create_weekly_schedule.py">
+                        ♻️ Загрузить шаблон из файла
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+        <!-- Вкладка: Картинка расписания -->
+        <div id="scheduleImage" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2>📸 Картинка расписания</h2>
+                </div>
+                <p style="color:#666;margin-bottom:16px;">
+                    Загрузите изображение с расписанием. Атлеты смогут получить его прямо в Telegram-боте.
+                    Хранится только одно изображение — при загрузке нового старое заменяется.
+                </p>
+                <div id="scheduleImageStatus" style="margin-bottom:16px;"></div>
+                <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+                    <label class="btn btn-primary" style="cursor:pointer;">
+                        📤 Загрузить изображение
+                        <input type="file" id="scheduleImageFile" accept="image/*" style="display:none;" onchange="uploadScheduleImage()">
+                    </label>
+                    <button class="btn btn-danger" id="deleteScheduleImageBtn" onclick="deleteScheduleImage()" style="display:none;">
+                        🗑️ Удалить изображение
+                    </button>
+                </div>
+                <div id="scheduleImagePreview" style="margin-top:20px;"></div>
             </div>
         </div>
     </div>
@@ -332,6 +358,30 @@
 
             <div id="viewWorkoutContent">
                 <div class="loading">Загрузка...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно смены роли -->
+    <div id="changeRoleModal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>Изменить роль</h2>
+                <span class="close" onclick="closeModal('changeRoleModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="roleSelect">Выберите роль:</label>
+                    <select id="roleSelect" class="form-control">
+                        <option value="athlete">👤 Атлет</option>
+                        <option value="trainer">🤸 Тренер</option>
+                        <option value="admin">👑 Администратор</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+                <button class="btn btn-secondary" onclick="closeModal('changeRoleModal')">Отмена</button>
+                <button class="btn btn-primary" onclick="confirmRoleChange()">Сохранить</button>
             </div>
         </div>
     </div>

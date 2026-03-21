@@ -1,7 +1,7 @@
 """
 API для управления тренировками
 """
-from datetime import datetime, date, timedelta
+from datetime import datetime as DateTime, date, timedelta
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel, Field
@@ -18,7 +18,7 @@ class WorkoutCreate(BaseModel):
     """Создание тренировки"""
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
-    datetime: datetime
+    datetime: DateTime
     duration: int = Field(default=60, gt=0, le=300)
     max_participants: int = Field(default=12, gt=0, le=100)
     trainer_id: Optional[int] = None
@@ -28,7 +28,7 @@ class WorkoutUpdate(BaseModel):
     """Обновление тренировки"""
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
-    datetime: Optional[datetime] = None
+    datetime: Optional[DateTime] = None
     duration: Optional[int] = Field(None, gt=0, le=300)
     max_participants: Optional[int] = Field(None, gt=0, le=100)
     trainer_id: Optional[int] = None
@@ -39,14 +39,14 @@ class WorkoutResponse(BaseModel):
     id: int
     name: str
     description: Optional[str]
-    datetime: datetime
+    datetime: DateTime
     duration: int
     max_participants: int
     current_participants: int
     trainer_id: Optional[int]
     trainer_name: Optional[str]
-    created_at: datetime
-    updated_at: datetime
+    created_at: DateTime
+    updated_at: DateTime
     
     class Config:
         from_attributes = True
@@ -279,9 +279,9 @@ async def delete_workout(
         active_bookings = await booking_repo.get_workout_bookings(
             workout_id, status=BookingStatus.ACTIVE, load_relations=True
         )
-        athlete_telegram_ids = [
-            b.user.telegram_id for b in active_bookings
-            if b.user and b.user.telegram_id
+        athlete_users = [
+            {'telegram_id': b.user.telegram_id, 'language': b.user.language or 'ru'}
+            for b in active_bookings if b.user and b.user.telegram_id
         ]
         workout_name = workout.name
         workout_dt = workout.datetime.strftime('%d.%m.%Y %H:%M')
@@ -297,13 +297,13 @@ async def delete_workout(
         await session.commit()
 
     # Уведомляем атлетов (после коммита, вне сессии)
-    if athlete_telegram_ids:
+    if athlete_users:
         from web.utils.notifications import notify_athletes_workout_cancelled
         from web.config import WebConfig
         import asyncio
         asyncio.create_task(notify_athletes_workout_cancelled(
             token=WebConfig.BOT_TOKEN,
-            athlete_telegram_ids=athlete_telegram_ids,
+            athletes=athlete_users,
             workout_name=workout_name,
             workout_datetime=workout_dt
         ))
@@ -541,7 +541,7 @@ async def bulk_create_schedule(
         trainer_id = request.trainer_id if request.trainer_id else user.id
 
         # ВАЖНО: Начинаем с понедельника текущей недели
-        today = datetime.now().date()
+        today = DateTime.now().date()
         days_since_monday = today.weekday()
         start_date = today - timedelta(days=days_since_monday)
 
@@ -563,7 +563,7 @@ async def bulk_create_schedule(
                 
                 for slot in day_schedule:
                     hour, minute = map(int, slot["time"].split(":"))
-                    workout_datetime = datetime.combine(current_date, datetime.min.time())
+                    workout_datetime = DateTime.combine(current_date, DateTime.min.time())
                     workout_datetime = workout_datetime.replace(hour=hour, minute=minute)
                     
                     # Проверяем существование

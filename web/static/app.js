@@ -331,13 +331,17 @@ async function editWorkout(workoutId) {
         form.elements['description'].value = workout.description || '';
         
         // Конвертируем datetime в нужный формат для input datetime-local
-        const dt = new Date(workout.datetime);
-        const dateStr = dt.toISOString().slice(0, 16);
-        form.elements['datetime'].value = dateStr;
+        form.elements['datetime'].value = workout.datetime.slice(0, 16);
         
         form.elements['duration'].value = workout.duration;
         form.elements['max_participants'].value = workout.max_participants;
-        
+
+        // Устанавливаем тренера в dropdown
+        const editTrainerSelect = document.getElementById('editTrainerSelect');
+        if (editTrainerSelect) {
+            editTrainerSelect.value = workout.trainer_id || '';
+        }
+
         openModal('editWorkoutModal');
     } catch (error) {
         showError('Не удалось загрузить тренировку: ' + error.message);
@@ -495,6 +499,7 @@ function displayUsers(users) {
             <td>
                 <div class="actions">
                     <button class="btn btn-sm btn-secondary" onclick="changeUserRole(${user.id}, '${user.role}')">Изменить роль</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteUser(${user.id}, '${user.full_name.replace(/'/g, "\\'")}')">Удалить</button>
                 </div>
             </td>
         `;
@@ -521,28 +526,47 @@ function displayUserStats(stats) {
     `;
 }
 
-async function changeUserRole(userId, currentRole) {
-    const newRole = prompt(`Изменить роль пользователя.\nТекущая роль: ${currentRole}\n\nВведите новую роль (athlete/trainer/admin):`, currentRole);
-    
-    if (!newRole || newRole === currentRole) {
+let _changeRoleUserId = null;
+let _changeRoleCurrentRole = null;
+
+function changeUserRole(userId, currentRole) {
+    _changeRoleUserId = userId;
+    _changeRoleCurrentRole = currentRole;
+    const select = document.getElementById('roleSelect');
+    select.value = currentRole;
+    openModal('changeRoleModal');
+}
+
+async function confirmRoleChange() {
+    const newRole = document.getElementById('roleSelect').value;
+    if (!newRole || newRole === _changeRoleCurrentRole) {
+        closeModal('changeRoleModal');
         return;
     }
-    
-    if (!['athlete', 'trainer', 'admin'].includes(newRole)) {
-        showError('Неверная роль');
-        return;
-    }
-    
     try {
-        await apiRequest(`/users/${userId}/role`, {
+        await apiRequest(`/users/${_changeRoleUserId}/role`, {
             method: 'PATCH',
             body: JSON.stringify({ role: newRole })
         });
-        
+        closeModal('changeRoleModal');
         showSuccess('Роль пользователя изменена!');
         loadUsers();
     } catch (error) {
         showError('Не удалось изменить роль: ' + error.message);
+    }
+}
+window.confirmRoleChange = confirmRoleChange;
+
+async function deleteUser(userId, userName) {
+    if (!confirm(`Удалить пользователя "${userName}"?\n\nЭто действие необратимо:\n— записи на тренировки будут удалены\n— тренировки, где он тренер, станут без тренера`)) {
+        return;
+    }
+    try {
+        await apiRequest(`/users/${userId}`, { method: 'DELETE' });
+        showSuccess(`Пользователь "${userName}" удалён`);
+        loadUsers();
+    } catch (error) {
+        showError('Не удалось удалить пользователя: ' + error.message);
     }
 }
 
@@ -579,6 +603,8 @@ function switchTab(tabName) {
         loadUsers();
     } else if (tabName === 'template') {
         loadTemplate();
+    } else if (tabName === 'scheduleImage') {
+        loadScheduleImage();
     }
 }
 
@@ -735,6 +761,77 @@ async function seedTemplateFromFile() {
         const result = await apiRequest('/schedule-template/seed-from-file', {method: 'POST'});
         showSuccess(result.message || `Создано ${result.created} слотов`);
         loadTemplate();
+    } catch (e) {
+        showError(e.message);
+    }
+}
+
+async function seedTemplateFromFileForce() {
+    if (!confirm('Очистить весь шаблон и загрузить заново из create_weekly_schedule.py?\nЭто действие необратимо.')) return;
+    try {
+        const result = await apiRequest('/schedule-template/seed-from-file?force=true', {method: 'POST'});
+        showSuccess(`Шаблон перезаписан. Создано ${result.created} слотов`);
+        loadTemplate();
+    } catch (e) {
+        showError(e.message);
+    }
+}
+
+// ─── Картинка расписания ─────────────────────────────────────────────────────
+
+async function loadScheduleImage() {
+    const statusEl = document.getElementById('scheduleImageStatus');
+    const previewEl = document.getElementById('scheduleImagePreview');
+    const deleteBtn = document.getElementById('deleteScheduleImageBtn');
+    try {
+        const data = await apiRequest('/schedule-image/status');
+        if (data.exists) {
+            statusEl.innerHTML = `<div class="alert alert-success">✅ Изображение загружено: <b>${data.filename}</b></div>`;
+            previewEl.innerHTML = `<img src="/api/schedule-image/file" alt="Расписание"
+                style="max-width:100%;max-height:500px;border-radius:8px;border:1px solid #ddd;">`;
+            deleteBtn.style.display = 'inline-block';
+        } else {
+            statusEl.innerHTML = `<div class="alert alert-warning">⚠️ Изображение не загружено</div>`;
+            previewEl.innerHTML = '';
+            deleteBtn.style.display = 'none';
+        }
+    } catch (e) {
+        statusEl.innerHTML = `<div class="alert alert-error">Ошибка: ${e.message}</div>`;
+    }
+}
+
+async function uploadScheduleImage() {
+    const fileInput = document.getElementById('scheduleImageFile');
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch(`${API_URL}/schedule-image/`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${authToken}` },
+            body: formData,
+        });
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({detail: 'Ошибка загрузки'}));
+            throw new Error(err.detail);
+        }
+        showSuccess('Изображение успешно загружено');
+        fileInput.value = '';
+        loadScheduleImage();
+    } catch (e) {
+        showError(e.message);
+    }
+}
+
+async function deleteScheduleImage() {
+    if (!confirm('Удалить изображение расписания?')) return;
+    try {
+        await apiRequest('/schedule-image/', {method: 'DELETE'});
+        showSuccess('Изображение удалено');
+        loadScheduleImage();
     } catch (e) {
         showError(e.message);
     }
@@ -1015,17 +1112,22 @@ window.bulkCreateSchedule = bulkCreateSchedule;
 window.deleteWorkoutsByRange = deleteWorkoutsByRange;
 window.clearAllWorkouts = clearAllWorkouts;
 window.changeUserRole = changeUserRole;
+window.deleteUser = deleteUser;
 window.openModal = openModal;
 window.closeModal = closeModal;
 window.switchTab = switchTab;
 window.logout = logout;
 window.updateUserInfo = updateUserInfo;
+window.loadTrainers = loadTrainers;
 window.openAddSlotForm = openAddSlotForm;
 window.saveNewSlot = saveNewSlot;
 window.editTemplateSlot = editTemplateSlot;
 window.updateTemplateSlot = updateTemplateSlot;
 window.deleteTemplateSlot = deleteTemplateSlot;
 window.seedTemplateFromFile = seedTemplateFromFile;
+window.seedTemplateFromFileForce = seedTemplateFromFileForce;
+window.uploadScheduleImage = uploadScheduleImage;
+window.deleteScheduleImage = deleteScheduleImage;
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
@@ -1045,6 +1147,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     updateUserInfo();
 
+    // Загружаем список тренеров для dropdown (только для admin)
+    loadTrainers();
+
     // Скрываем элементы управления для тренеров (только admin видит полный интерфейс)
     if (currentUser.role !== 'admin') {
         // Кнопки "Создать тренировку" в шапках вкладок
@@ -1058,6 +1163,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Вкладка "Шаблон расписания"
         const templateTab = document.getElementById('templateTab');
         if (templateTab) templateTab.style.display = 'none';
+        // Вкладка "Картинка расписания"
+        const scheduleImageTab = document.getElementById('scheduleImageTab');
+        if (scheduleImageTab) scheduleImageTab.style.display = 'none';
     }
 
     // Обработчики форм
@@ -1066,12 +1174,14 @@ document.addEventListener('DOMContentLoaded', () => {
         createForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
+            const rawTrainerId = formData.get('trainer_id');
             const workoutData = {
                 name: formData.get('name'),
                 description: formData.get('description'),
                 datetime: formData.get('datetime'),
                 duration: parseInt(formData.get('duration')),
-                max_participants: parseInt(formData.get('max_participants'))
+                max_participants: parseInt(formData.get('max_participants')),
+                trainer_id: rawTrainerId ? parseInt(rawTrainerId) : null
             };
             createWorkout(workoutData);
         });
@@ -1083,12 +1193,14 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             const formData = new FormData(e.target);
             const workoutId = formData.get('workout_id');
+            const rawTrainerId = formData.get('trainer_id');
             const workoutData = {
                 name: formData.get('name'),
                 description: formData.get('description'),
                 datetime: formData.get('datetime'),
                 duration: parseInt(formData.get('duration')),
-                max_participants: parseInt(formData.get('max_participants'))
+                max_participants: parseInt(formData.get('max_participants')),
+                trainer_id: rawTrainerId ? parseInt(rawTrainerId) : null
             };
             updateWorkout(workoutId, workoutData);
         });

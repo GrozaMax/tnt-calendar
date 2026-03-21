@@ -20,11 +20,7 @@ def validate_booking_time(workout_datetime: datetime) -> tuple[bool, str]:
     # Проверка что тренировка не в прошлом
     if workout_datetime < now:
         return False, "❌ Нельзя записаться на тренировку в прошлом"
-    
-    # Проверка что тренировка сегодня или завтра
-    if workout_date not in [today, tomorrow]:
-        return False, "❌ Запись возможна только на сегодня или завтра"
-    
+
     return True, ""
 
 

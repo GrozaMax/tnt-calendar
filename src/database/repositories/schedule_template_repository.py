@@ -62,6 +62,9 @@ class ScheduleTemplateRepository:
         await self.session.execute(delete(ScheduleTemplate).where(ScheduleTemplate.id == template_id))
         return True
 
+    async def delete_all(self) -> None:
+        await self.session.execute(delete(ScheduleTemplate))
+
     async def count(self) -> int:
         result = await self.session.execute(select(ScheduleTemplate))
         return len(result.scalars().all())

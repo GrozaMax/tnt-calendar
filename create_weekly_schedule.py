@@ -1,6 +1,6 @@
 """
 Актуальное расписание CrossFit зала на неделю
-Обновлено: 1 декабря 2025
+Обновлено: март 2026
 """
 
 # Расписание по дням недели (0 = понедельник, 6 = воскресенье)
@@ -8,20 +8,17 @@ WEEKLY_SCHEDULE = {
     0: [  # ПОНЕДЕЛЬНИК
         {"time": "08:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "09:30", "name": "CrossFit", "duration": 60, "max_participants": 12},
+        {"time": "11:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "12:30", "name": "CrossFit", "duration": 60, "max_participants": 12},
-        {"time": "14:00", "name": "CrossFit pupa", "duration": 60, "max_participants": 15},
         {"time": "17:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "18:30", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "20:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
-        {"time": "21:30", "name": "Yoga", "duration": 60, "max_participants": 15},
     ],
     1: [  # ВТОРНИК
         {"time": "08:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "09:30", "name": "CrossFit", "duration": 60, "max_participants": 12},
-        {"time": "11:30", "name": "Stretching", "duration": 60, "max_participants": 15},
         {"time": "12:30", "name": "Weightlifting", "duration": 60, "max_participants": 10},
         {"time": "15:00", "name": "Thai Boxing", "duration": 60, "max_participants": 15},
-        {"time": "17:00", "name": "CrossFit Beginners", "duration": 60, "max_participants": 15},
         {"time": "18:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "19:30", "name": "Weightlifting", "duration": 60, "max_participants": 10},
         {"time": "20:30", "name": "CrossFit", "duration": 60, "max_participants": 12},
@@ -29,8 +26,8 @@ WEEKLY_SCHEDULE = {
     2: [  # СРЕДА
         {"time": "08:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "09:30", "name": "CrossFit", "duration": 60, "max_participants": 12},
+        {"time": "11:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "12:30", "name": "CrossFit", "duration": 60, "max_participants": 12},
-        {"time": "14:00", "name": "CrossFit Beginners", "duration": 60, "max_participants": 15},
         {"time": "17:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "18:30", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "20:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
@@ -40,7 +37,6 @@ WEEKLY_SCHEDULE = {
         {"time": "09:30", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "12:30", "name": "Weightlifting", "duration": 60, "max_participants": 10},
         {"time": "15:00", "name": "Thai Boxing", "duration": 60, "max_participants": 15},
-        {"time": "17:00", "name": "CrossFit Beginners", "duration": 60, "max_participants": 15},
         {"time": "18:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "19:30", "name": "Weightlifting", "duration": 60, "max_participants": 10},
         {"time": "20:30", "name": "CrossFit", "duration": 60, "max_participants": 12},
@@ -48,12 +44,11 @@ WEEKLY_SCHEDULE = {
     4: [  # ПЯТНИЦА
         {"time": "08:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "09:30", "name": "CrossFit", "duration": 60, "max_participants": 12},
+        {"time": "11:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "12:30", "name": "CrossFit", "duration": 60, "max_participants": 12},
-        {"time": "14:00", "name": "CrossFit Beginners", "duration": 60, "max_participants": 15},
         {"time": "17:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "18:30", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "20:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
-        {"time": "21:30", "name": "Yoga", "duration": 60, "max_participants": 15},
     ],
     5: [  # СУББОТА
         {"time": "09:30", "name": "Yoga", "duration": 60, "max_participants": 15},
@@ -61,9 +56,11 @@ WEEKLY_SCHEDULE = {
         {"time": "12:30", "name": "Weightlifting", "duration": 60, "max_participants": 10},
         {"time": "14:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "16:00", "name": "Thai Boxing", "duration": 60, "max_participants": 15},
+        {"time": "17:30", "name": "CrossFit", "duration": 60, "max_participants": 12},
+        {"time": "19:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
     ],
     6: [  # ВОСКРЕСЕНЬЕ
-        {"time": "11:00", "name": "CrossFit Beginners", "duration": 60, "max_participants": 15},
+        {"time": "11:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "12:30", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "14:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
     ],

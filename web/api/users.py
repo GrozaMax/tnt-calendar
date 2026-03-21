@@ -4,7 +4,7 @@ API для управления пользователями
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, update as sql_update, delete as sql_delete
 
 from web.api.auth import get_current_user
 from src.database import get_session
@@ -172,6 +172,61 @@ async def update_user_role(
             language=user.language,
             created_at=user.created_at.isoformat()
         )
+
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user(
+    user_id: int,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Удалить пользователя из базы данных.
+
+    Только для админов. Нельзя удалить себя.
+    Обнуляет trainer_id на тренировках, удаляет записи (bookings), затем удаляет юзера.
+    """
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can delete users"
+        )
+
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot delete yourself"
+        )
+
+    from src.models import Workout, Booking
+
+    async with get_session() as session:
+        user_repo = UserRepository(session)
+        user = await user_repo.get_by_id(user_id)
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+
+        # Обнуляем trainer_id на тренировках этого пользователя
+        await session.execute(
+            sql_update(Workout)
+            .where(Workout.trainer_id == user_id)
+            .values(trainer_id=None)
+        )
+
+        # Удаляем все записи (bookings) пользователя
+        await session.execute(
+            sql_delete(Booking).where(Booking.user_id == user_id)
+        )
+
+        # Удаляем пользователя
+        await session.execute(
+            sql_delete(User).where(User.id == user_id)
+        )
+
+        await session.commit()
 
 
 @router.get("/stats/summary")
