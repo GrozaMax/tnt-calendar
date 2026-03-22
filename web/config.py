@@ -12,7 +12,7 @@ class WebConfig:
     
     # Сервер
     HOST = os.getenv("WEB_HOST", "0.0.0.0")
-    PORT = int(os.getenv("WEB_PORT", "8000"))
+    PORT = int(os.getenv("PORT", os.getenv("WEB_PORT", "8000")))
     DEBUG = os.getenv("WEB_DEBUG", "true").lower() == "true"
     
     # Безопасность
