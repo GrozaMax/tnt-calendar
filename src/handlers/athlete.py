@@ -3,6 +3,7 @@
 """
 from datetime import date, datetime, timedelta
 from telegram import Update
+from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
 from src.database import get_session
@@ -63,16 +64,20 @@ async def show_schedule_for_day(update: Update, context: ContextTypes.DEFAULT_TY
     user: User = context.user_data.get('current_user')
     lang = user.language if user else 'ru'
     
-    # Определяем день (today или tomorrow)
-    _, day = query.data.split(':')
-    
+    # Определяем день (today, tomorrow или ISO дата)
+    _, day = query.data.split(':', 1)
+
     if day == 'today':
         target_date = date.today()
         day_name = get_text('schedule.today', lang)
-    else:  # tomorrow
+    elif day == 'tomorrow':
         target_date = date.today() + timedelta(days=1)
         day_name = get_text('schedule.tomorrow', lang)
-    
+    else:
+        # ISO дата (например 2026-03-22)
+        target_date = date.fromisoformat(day)
+        day_name = target_date.strftime('%d.%m.%Y')
+
     # Сохраняем текущую дату в контекст
     context.user_data['current_schedule_date'] = target_date
     context.user_data['current_schedule_day'] = day
@@ -98,11 +103,14 @@ async def show_schedule_for_day(update: Update, context: ContextTypes.DEFAULT_TY
         text += "Выберите тренировку:"
         keyboard = workouts_list_keyboard(workouts, lang)
     
-    await query.edit_message_text(
-        text,
-        reply_markup=keyboard,
-        parse_mode='Markdown'
-    )
+    try:
+        await query.edit_message_text(
+            text,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+    except BadRequest:
+        pass  # сообщение уже содержит тот же текст
 
 
 async def show_workout_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
