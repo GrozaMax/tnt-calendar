@@ -173,7 +173,7 @@ async def show_workout_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if user.role == UserRole.TRAINER and workout.trainer_id == user.id:
                 keyboard_rows.append([
                     InlineKeyboardButton(
-                        "👥 Управление участниками",
+                        get_text('trainer.manage_participants', lang),
                         callback_data=f'trainer_workout_info:{workout_id}'
                     )
                 ])
@@ -219,7 +219,8 @@ async def book_workout(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Создаём запись
         success, message, _ = await booking_service.create_booking(
             user_id=user.id,
-            workout_id=workout_id
+            workout_id=workout_id,
+            lang=lang
         )
         
         if success:
@@ -248,7 +249,8 @@ async def book_workout(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     trainer_telegram_id=workout.trainer.telegram_id,
                     athlete_name=user.full_name,
                     workout_name=workout.name,
-                    workout_datetime=workout.datetime.strftime('%d.%m.%Y %H:%M')
+                    workout_datetime=workout.datetime.strftime('%d.%m.%Y %H:%M'),
+                    trainer_lang=workout.trainer.language or 'ru'
                 )
                 # После уведомления сбрасываем nav у тренера — чтобы следующий запрос создал новое сообщение внизу
                 if sent:
@@ -261,7 +263,7 @@ async def book_workout(update: Update, context: ContextTypes.DEFAULT_TYPE):
             workout = await workout_repo.get_by_id(workout_id, load_relations=True)
             
             # Формируем текст с ошибкой
-            error_text = f"⚠️ *Не удалось записаться*\n\n"
+            error_text = f"{get_text('common.error', lang)}\n\n"
             error_text += f"{message}\n\n"
             error_text += "━━━━━━━━━━━━━━━━━━━━\n\n"
             
@@ -305,7 +307,7 @@ async def cancel_booking_from_workout(update: Update, context: ContextTypes.DEFA
             return
 
         # Отменяем запись
-        success, message = await booking_service.cancel_booking(booking.id, user.id)
+        success, message = await booking_service.cancel_booking(booking.id, user.id, lang=lang)
 
         await query.answer(message, show_alert=True)
 
@@ -323,7 +325,8 @@ async def cancel_booking_from_workout(update: Update, context: ContextTypes.DEFA
                     trainer_telegram_id=workout.trainer.telegram_id,
                     athlete_name=user.full_name,
                     workout_name=workout.name,
-                    workout_datetime=workout.datetime.strftime('%d.%m.%Y %H:%M')
+                    workout_datetime=workout.datetime.strftime('%d.%m.%Y %H:%M'),
+                    trainer_lang=workout.trainer.language or 'ru'
                 )
                 if sent:
                     trainer_ud = context.application.user_data.get(workout.trainer.telegram_id)
@@ -399,6 +402,7 @@ async def cancel_booking_from_list(update: Update, context: ContextTypes.DEFAULT
     await query.answer()
 
     user: User = context.user_data.get('current_user')
+    lang = user.language if user else 'ru'
 
     # Получаем ID записи
     _, booking_id = query.data.split(':')
@@ -411,7 +415,7 @@ async def cancel_booking_from_list(update: Update, context: ContextTypes.DEFAULT
         # Получаем данные записи до отмены (для уведомления)
         booking = await booking_repo.get_by_id(booking_id, load_relations=True)
 
-        success, message = await booking_service.cancel_booking(booking_id, user.id)
+        success, message = await booking_service.cancel_booking(booking_id, user.id, lang=lang)
 
         await query.answer(message, show_alert=True)
 
@@ -423,7 +427,8 @@ async def cancel_booking_from_list(update: Update, context: ContextTypes.DEFAULT
                     trainer_telegram_id=booking.workout.trainer.telegram_id,
                     athlete_name=user.full_name,
                     workout_name=booking.workout.name,
-                    workout_datetime=booking.workout.datetime.strftime('%d.%m.%Y %H:%M')
+                    workout_datetime=booking.workout.datetime.strftime('%d.%m.%Y %H:%M'),
+                    trainer_lang=booking.workout.trainer.language or 'ru'
                 )
                 if sent:
                     trainer_ud = context.application.user_data.get(booking.workout.trainer.telegram_id)
@@ -572,7 +577,7 @@ async def show_schedule_image(update: Update, context: ContextTypes.DEFAULT_TYPE
     image_path = get_image_path()
     if not image_path:
         await query.edit_message_text(
-            "📸 *Картинка расписания*\n\nКартинка ещё не загружена.",
+            get_text('admin.image_not_uploaded', lang),
             reply_markup=schedule_days_keyboard(lang, back_callback=back),
             parse_mode='Markdown'
         )

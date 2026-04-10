@@ -1,8 +1,10 @@
 """
 Модель пользователя
 """
+from __future__ import annotations
+
 import enum
-from typing import List, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING
 from sqlalchemy import String, Integer, Enum, BigInteger
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -31,9 +33,9 @@ class User(Base, TimestampMixin):
         nullable=False,
         index=True
     )
-    username: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    username: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     first_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    last_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    last_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole),
         default=UserRole.ATHLETE,

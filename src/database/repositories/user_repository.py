@@ -1,6 +1,8 @@
 """
 Репозиторий для работы с пользователями
 """
+from __future__ import annotations
+
 from typing import Optional, Dict, Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

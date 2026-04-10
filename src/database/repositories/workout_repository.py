@@ -1,6 +1,8 @@
 """
 Репозиторий для работы с тренировками
 """
+from __future__ import annotations
+
 from datetime import datetime, date, time, timedelta
 from typing import Optional
 from sqlalchemy import select, and_

@@ -16,16 +16,15 @@ from src.utils.decorators import role_required
 def _build_admin_menu_content(lang: str = 'ru'):
     """Возвращает (text, keyboard) для панели администратора — используется из callback и text handler."""
     text = (
-        "👑 *Панель администратора*\n\n"
-        "Здесь вы можете просматривать расписание и участников.\n"
-        "Управление — через веб-интерфейс."
+        f"{get_text('admin.panel_title', lang)}\n\n"
+        f"{get_text('admin.panel_desc', lang)}"
     )
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📅 Расписание на сегодня", callback_data='admin_view_workouts:today')],
-        [InlineKeyboardButton("📅 Расписание на завтра", callback_data='admin_view_workouts:tomorrow')],
-        [InlineKeyboardButton("📅 Расписание на неделю", callback_data='admin_view_workouts:week')],
-        [InlineKeyboardButton("👥 Статистика пользователей", callback_data='admin_users_stats')],
-        [InlineKeyboardButton("📸 Картинка расписания", callback_data='admin_schedule_image')],
+        [InlineKeyboardButton(get_text('admin.schedule_today', lang), callback_data='admin_view_workouts:today')],
+        [InlineKeyboardButton(get_text('admin.schedule_tomorrow', lang), callback_data='admin_view_workouts:tomorrow')],
+        [InlineKeyboardButton(get_text('admin.schedule_week', lang), callback_data='admin_view_workouts:week')],
+        [InlineKeyboardButton(get_text('admin.users_stats', lang), callback_data='admin_users_stats')],
+        [InlineKeyboardButton(get_text('admin.schedule_image', lang), callback_data='admin_schedule_image')],
         [InlineKeyboardButton(get_text('menu.back', lang), callback_data='main_menu')],
     ])
     return text, keyboard
@@ -57,16 +56,16 @@ async def show_admin_workouts(update: Update, context: ContextTypes.DEFAULT_TYPE
     if period == 'today':
         target_date = date.today()
         date_end = target_date
-        title = "Сегодня"
+        title = get_text('schedule.today', lang)
     elif period == 'tomorrow':
         target_date = date.today() + timedelta(days=1)
         date_end = target_date
-        title = "Завтра"
+        title = get_text('schedule.tomorrow', lang)
     else:  # week — показываем выбор дня
         from src.keyboards.athlete_keyboards import WEEKDAY_NAMES
         today = date.today()
         day_names = WEEKDAY_NAMES.get(lang, WEEKDAY_NAMES['ru'])
-        text = "📅 *Расписание на неделю*\n\nВыберите день:"
+        text = get_text('admin.week_select_day', lang)
         keyboard = []
         for i in range(7):
             d = today + timedelta(days=i)
@@ -84,13 +83,13 @@ async def show_admin_workouts(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     if not workouts:
         await query.edit_message_text(
-            f"📅 *{title}*\n\nТренировок не найдено",
+            f"📅 *{title}*\n\n{get_text('admin.no_workouts_found', lang)}",
             reply_markup=InlineKeyboardMarkup(back_btn),
             parse_mode='Markdown'
         )
         return
 
-    text = f"📅 *Расписание: {title}*\n\nВсего тренировок: *{len(workouts)}*\n\n"
+    text = get_text('admin.schedule_title', lang, title=title, count=len(workouts)) + "\n\n"
     keyboard = []
 
     for workout in workouts[:20]:
@@ -103,7 +102,7 @@ async def show_admin_workouts(update: Update, context: ContextTypes.DEFAULT_TYPE
         keyboard.append([InlineKeyboardButton(button_text, callback_data=f'admin_workout_details:{workout.id}:{period}')])
 
     if len(workouts) > 20:
-        text += f"⚠️ Показаны первые 20 из {len(workouts)}\n"
+        text += get_text('admin.shown_first', lang, count=len(workouts)) + "\n"
 
     keyboard += back_btn
 
@@ -127,17 +126,17 @@ async def show_admin_day_workouts(update: Update, context: ContextTypes.DEFAULT_
         workouts = await workout_repo.get_by_date_range(target_date, target_date)
 
     day_label = target_date.strftime('%d.%m.%Y')
-    back_btn = [[InlineKeyboardButton("« Назад к неделе", callback_data='admin_view_workouts:week')]]
+    back_btn = [[InlineKeyboardButton(get_text('admin.back_to_week', lang), callback_data='admin_view_workouts:week')]]
 
     if not workouts:
         await query.edit_message_text(
-            f"📅 *{day_label}*\n\nТренировок нет",
+            f"📅 *{day_label}*\n\n{get_text('admin.no_workouts_day', lang)}",
             reply_markup=InlineKeyboardMarkup(back_btn),
             parse_mode='Markdown'
         )
         return
 
-    text = f"📅 *{day_label}* — тренировок: *{len(workouts)}*\n\n"
+    text = f"📅 *{day_label}* — {get_text('admin.workouts_count', lang, count=len(workouts))}\n\n"
     keyboard = []
     for workout in workouts:
         occupancy = workout.current_participants / workout.max_participants
@@ -178,15 +177,15 @@ async def show_workout_details(update: Update, context: ContextTypes.DEFAULT_TYP
         workout = await workout_repo.get_by_id(workout_id, load_relations=True)
         
         if not workout:
-            await query.answer("❌ Тренировка не найдена", show_alert=True)
+            await query.answer(get_text('schedule.workout_not_found', lang), show_alert=True)
             return
         
         text = f"📋 *{workout.name}*\n\n"
         text += f"🕐 {workout.datetime.strftime('%d.%m.%Y %H:%M')}\n"
-        text += f"⏱ {workout.duration} мин\n"
-        trainer_name = workout.trainer.full_name if workout.trainer else "Не назначен"
-        text += f"👤 Тренер: {trainer_name}\n"
-        text += f"👥 Записалось: *{workout.current_participants}/{workout.max_participants}*\n"
+        text += get_text('schedule.duration', lang, duration=workout.duration) + "\n"
+        trainer_name = workout.trainer.full_name if workout.trainer else get_text('schedule.no_trainer', lang)
+        text += get_text('schedule.trainer', lang, name=trainer_name) + "\n"
+        text += get_text('schedule.participants', lang, count=workout.current_participants, max=workout.max_participants) + "\n"
         
         if workout.description:
             text += f"\n📝 {workout.description}\n"
@@ -199,7 +198,7 @@ async def show_workout_details(update: Update, context: ContextTypes.DEFAULT_TYP
         )
         
         if bookings:
-            text += f"\n👥 *Список участников:*\n\n"
+            text += f"\n{get_text('admin.participants_list', lang)}\n\n"
             for i, booking in enumerate(bookings[:20], 1):
                 text += f"{i}. {booking.user.full_name}"
                 if booking.user.username:
@@ -207,16 +206,16 @@ async def show_workout_details(update: Update, context: ContextTypes.DEFAULT_TYP
                 text += "\n"
             
             if len(bookings) > 20:
-                text += f"\n... и ещё {len(bookings) - 20}"
+                text += f"\n{get_text('admin.and_more', lang, count=len(bookings) - 20)}"
         else:
-            text += "\nℹ️ Пока никто не записался"
+            text += f"\n{get_text('admin.no_participants', lang)}"
         
         keyboard = [
             [
-                InlineKeyboardButton("👤 Назначить тренера", callback_data=f'admin_select_trainer:{workout_id}:{source}'),
-                InlineKeyboardButton("🗑️ Удалить", callback_data=f'admin_delete_workout_confirm:{workout_id}'),
+                InlineKeyboardButton(get_text('admin.assign_trainer', lang), callback_data=f'admin_select_trainer:{workout_id}:{source}'),
+                InlineKeyboardButton(get_text('admin.delete_workout', lang), callback_data=f'admin_delete_workout_confirm:{workout_id}'),
             ],
-            [InlineKeyboardButton("« Назад", callback_data=back_callback)]
+            [InlineKeyboardButton(get_text('menu.back', lang), callback_data=back_callback)]
         ]
 
         await query.edit_message_text(
@@ -253,14 +252,14 @@ async def show_users_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         total = await session.execute(select(func.count(UserModel.id)))
         total_count = total.scalar()
     
-    text = "👥 *Статистика пользователей*\n\n"
-    text += f"Всего: *{total_count}*\n\n"
-    text += f"🏋️ Атлетов: *{stats.get('athlete', 0)}*\n"
-    text += f"🤸‍♀️ Тренеров: *{stats.get('trainer', 0)}*\n"
-    text += f"👑 Админов: *{stats.get('admin', 0)}*\n\n"
-    text += "💡 *Для управления используйте веб-интерфейс*"
+    text = f"{get_text('admin.stats_title', lang)}\n\n"
+    text += get_text('admin.stats_total', lang, count=total_count) + "\n\n"
+    text += get_text('admin.stats_athletes', lang, count=stats.get('athlete', 0)) + "\n"
+    text += get_text('admin.stats_trainers', lang, count=stats.get('trainer', 0)) + "\n"
+    text += get_text('admin.stats_admins', lang, count=stats.get('admin', 0)) + "\n\n"
+    text += get_text('admin.stats_hint', lang)
 
-    keyboard = [[InlineKeyboardButton("« Назад", callback_data='admin_menu')]]
+    keyboard = [[InlineKeyboardButton(get_text('menu.back', lang), callback_data='admin_menu')]]
 
     await query.edit_message_text(
         text,
@@ -275,6 +274,9 @@ async def admin_delete_workout_confirm(update: Update, context: ContextTypes.DEF
     query = update.callback_query
     await query.answer()
 
+    user: User = context.user_data.get('current_user')
+    lang = user.language if user else 'ru'
+
     workout_id = int(query.data.split(':')[1])
 
     async with get_session() as session:
@@ -282,7 +284,7 @@ async def admin_delete_workout_confirm(update: Update, context: ContextTypes.DEF
         workout = await workout_repo.get_by_id(workout_id)
 
     if not workout:
-        await query.answer("❌ Тренировка не найдена", show_alert=True)
+        await query.answer(get_text('schedule.workout_not_found', lang), show_alert=True)
         return
 
     # Сохраняем ID тренировки и сообщения — ждём текстового сообщения с причиной
@@ -293,13 +295,13 @@ async def admin_delete_workout_confirm(update: Update, context: ContextTypes.DEF
     context.user_data['pending_delete_chat_id'] = query.message.chat_id
 
     text = (
-        f"🗑️ *Удалить тренировку?*\n\n"
+        f"{get_text('admin.delete_confirm', lang)}\n\n"
         f"*{workout.name}*\n"
         f"📅 {workout.datetime.strftime('%d.%m.%Y %H:%M')}\n\n"
-        f"✏️ Напишите причину отмены — она будет отправлена всем записавшимся атлетам.\n\n"
-        f"_Отправьте сообщение с причиной или нажмите «Не удалять»._"
+        f"{get_text('admin.delete_enter_reason', lang)}\n\n"
+        f"{get_text('admin.delete_hint', lang)}"
     )
-    keyboard = [[InlineKeyboardButton("❌ Не удалять", callback_data=f'admin_cancel_delete:{workout_id}')]]
+    keyboard = [[InlineKeyboardButton(get_text('admin.delete_cancel', lang), callback_data=f'admin_cancel_delete:{workout_id}')]]
     await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
 
@@ -325,6 +327,9 @@ async def handle_admin_delete_reason(update: Update, context: ContextTypes.DEFAU
     if not workout_id:
         return  # не ждём ввода — игнорируем
 
+    user: User = context.user_data.get('current_user')
+    lang = user.language if user else 'ru'
+
     reason = update.message.text.strip()
     workout_name = context.user_data.pop('pending_delete_workout_name', '')
     workout_dt = context.user_data.pop('pending_delete_workout_dt', '')
@@ -338,7 +343,7 @@ async def handle_admin_delete_reason(update: Update, context: ContextTypes.DEFAU
 
         workout = await workout_repo.get_by_id(workout_id, load_relations=True)
         if not workout:
-            await update.message.reply_text("❌ Тренировка не найдена или уже удалена.")
+            await update.message.reply_text(get_text('admin.delete_not_found', lang))
             return
 
         active_bookings = await booking_repo.get_workout_bookings(
@@ -351,7 +356,7 @@ async def handle_admin_delete_reason(update: Update, context: ContextTypes.DEFAU
 
         success = await workout_repo.delete(workout_id)
         if not success:
-            await update.message.reply_text("❌ Ошибка при удалении тренировки.")
+            await update.message.reply_text(get_text('admin.delete_error', lang))
             return
         await session.commit()
 
@@ -372,13 +377,13 @@ async def handle_admin_delete_reason(update: Update, context: ContextTypes.DEFAU
         pass
 
     # Заменяем "Удалить тренировку?" на "Тренировка удалена"
-    reason_text = f"\n📝 Причина: _{reason}_" if reason else ""
+    reason_text = f"\n{get_text('admin.delete_reason', lang, reason=reason)}" if reason else ""
     done_text = (
-        f"✅ *Тренировка удалена*\n\n"
+        f"{get_text('admin.delete_done', lang)}\n\n"
         f"*{workout_name}*\n"
         f"📅 {workout_dt}"
         f"{reason_text}\n\n"
-        f"Уведомлено атлетов: {len(athlete_users)}"
+        f"{get_text('admin.notified_athletes', lang, count=len(athlete_users))}"
     )
     if confirm_message_id and confirm_chat_id:
         try:
@@ -405,6 +410,9 @@ async def admin_select_trainer(update: Update, context: ContextTypes.DEFAULT_TYP
     query = update.callback_query
     await query.answer()
 
+    user: User = context.user_data.get('current_user')
+    lang = user.language if user else 'ru'
+
     parts = query.data.split(':')
     workout_id = int(parts[1])
     source = parts[2] if len(parts) > 2 else context.user_data.get('admin_workout_source', 'today')
@@ -415,13 +423,13 @@ async def admin_select_trainer(update: Update, context: ContextTypes.DEFAULT_TYP
 
         workout = await workout_repo.get_by_id(workout_id, load_relations=True)
         if not workout:
-            await query.answer("❌ Тренировка не найдена", show_alert=True)
+            await query.answer(get_text('schedule.workout_not_found', lang), show_alert=True)
             return
 
         trainers = await user_repo.get_all_trainers()
 
-    current = f" (сейчас: {workout.trainer.full_name})" if workout.trainer else " (не назначен)"
-    text = f"👤 *Назначить тренера*\n\n*{workout.name}* {workout.datetime.strftime('%d.%m %H:%M')}{current}\n\nВыберите тренера:"
+    current = get_text('admin.trainer_current', lang, name=workout.trainer.full_name) if workout.trainer else get_text('admin.trainer_none', lang)
+    text = get_text('admin.select_trainer', lang, name=workout.name, datetime=workout.datetime.strftime('%d.%m %H:%M'), current=current)
 
     keyboard = []
     for t in trainers:
@@ -432,8 +440,8 @@ async def admin_select_trainer(update: Update, context: ContextTypes.DEFAULT_TYP
                 callback_data=f'admin_assign_trainer:{workout_id}:{t.id}:{source}'
             )
         ])
-    keyboard.append([InlineKeyboardButton("🚫 Без тренера", callback_data=f'admin_assign_trainer:{workout_id}:0:{source}')])
-    keyboard.append([InlineKeyboardButton("« Назад", callback_data=f'admin_workout_details:{workout_id}:{source}')])
+    keyboard.append([InlineKeyboardButton(get_text('admin.no_trainer_btn', lang), callback_data=f'admin_assign_trainer:{workout_id}:0:{source}')])
+    keyboard.append([InlineKeyboardButton(get_text('menu.back', lang), callback_data=f'admin_workout_details:{workout_id}:{source}')])
 
     await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
@@ -443,6 +451,9 @@ async def admin_assign_trainer(update: Update, context: ContextTypes.DEFAULT_TYP
     """Назначить тренера на тренировку"""
     query = update.callback_query
     await query.answer()
+
+    user: User = context.user_data.get('current_user')
+    lang = user.language if user else 'ru'
 
     parts = query.data.split(':')
     workout_id = int(parts[1])
@@ -455,16 +466,16 @@ async def admin_assign_trainer(update: Update, context: ContextTypes.DEFAULT_TYP
         trainer_id_value = trainer_id if trainer_id != 0 else None
         workout = await workout_repo.update(workout_id, trainer_id=trainer_id_value)
         if not workout:
-            await query.answer("❌ Тренировка не найдена", show_alert=True)
+            await query.answer(get_text('schedule.workout_not_found', lang), show_alert=True)
             return
         await session.commit()
 
         # Перечитываем со связями для отображения имени
         workout = await workout_repo.get_by_id(workout_id, load_relations=True)
 
-    trainer_name = workout.trainer.full_name if workout.trainer else "Не назначен"
-    text = f"✅ Тренер назначен: *{trainer_name}*\n\n*{workout.name}* {workout.datetime.strftime('%d.%m.%Y %H:%M')}"
-    keyboard = [[InlineKeyboardButton("« К тренировке", callback_data=f'admin_workout_details:{workout_id}:{source}')]]
+    trainer_name = workout.trainer.full_name if workout.trainer else get_text('schedule.no_trainer', lang)
+    text = get_text('admin.trainer_assigned', lang, name=trainer_name, workout=workout.name, datetime=workout.datetime.strftime('%d.%m.%Y %H:%M'))
+    keyboard = [[InlineKeyboardButton(get_text('admin.to_workout', lang), callback_data=f'admin_workout_details:{workout_id}:{source}')]]
     await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
 
@@ -475,19 +486,19 @@ async def show_admin_schedule_image(update: Update, context: ContextTypes.DEFAUL
     query = update.callback_query
     await query.answer()
 
-    exists = image_exists()
-    if exists:
-        status_text = "✅ Картинка загружена"
-    else:
-        status_text = "❌ Картинка не загружена"
+    user: User = context.user_data.get('current_user')
+    lang = user.language if user else 'ru'
 
-    text = f"📸 *Картинка расписания*\n\n{status_text}\n\nЧтобы загрузить новую картинку, нажмите кнопку ниже, затем отправьте изображение в чат."
+    exists = image_exists()
+    status_text = get_text('admin.image_loaded', lang) if exists else get_text('admin.image_not_loaded', lang)
+
+    text = f"{get_text('admin.image_title', lang)}\n\n{status_text}\n\n{get_text('admin.image_upload_hint', lang)}"
     keyboard = [
-        [InlineKeyboardButton("📤 Загрузить изображение", callback_data='admin_upload_schedule_image')],
+        [InlineKeyboardButton(get_text('admin.image_upload_btn', lang), callback_data='admin_upload_schedule_image')],
     ]
     if exists:
-        keyboard.append([InlineKeyboardButton("🗑️ Удалить изображение", callback_data='admin_delete_schedule_image')])
-    keyboard.append([InlineKeyboardButton("« Назад", callback_data='admin_menu')])
+        keyboard.append([InlineKeyboardButton(get_text('admin.image_delete_btn', lang), callback_data='admin_delete_schedule_image')])
+    keyboard.append([InlineKeyboardButton(get_text('menu.back', lang), callback_data='admin_menu')])
 
     await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 
@@ -497,11 +508,15 @@ async def admin_upload_schedule_image_prompt(update: Update, context: ContextTyp
     """Подготовить бота к приёму фото от администратора"""
     query = update.callback_query
     await query.answer()
+
+    user: User = context.user_data.get('current_user')
+    lang = user.language if user else 'ru'
+
     context.user_data['awaiting_schedule_image'] = True
     await query.edit_message_text(
-        "📸 *Загрузка картинки расписания*\n\nОтправьте изображение в этот чат. Старая картинка будет удалена.",
+        get_text('admin.image_upload_prompt', lang),
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("« Отмена", callback_data='admin_schedule_image')]
+            [InlineKeyboardButton(get_text('admin.image_cancel', lang), callback_data='admin_schedule_image')]
         ]),
         parse_mode='Markdown'
     )
@@ -513,11 +528,15 @@ async def admin_delete_schedule_image(update: Update, context: ContextTypes.DEFA
     from src.services.schedule_image_service import delete_image
     query = update.callback_query
     await query.answer()
+
+    user: User = context.user_data.get('current_user')
+    lang = user.language if user else 'ru'
+
     delete_image()
     await query.edit_message_text(
-        "🗑️ *Картинка удалена*",
+        get_text('admin.image_deleted', lang),
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("« Назад", callback_data='admin_schedule_image')]
+            [InlineKeyboardButton(get_text('menu.back', lang), callback_data='admin_schedule_image')]
         ]),
         parse_mode='Markdown'
     )
@@ -535,6 +554,7 @@ async def handle_admin_photo_upload(update: Update, context: ContextTypes.DEFAUL
     if not user or user.role != UserRole.ADMIN:
         return
 
+    lang = user.language if user else 'ru'
     context.user_data['awaiting_schedule_image'] = False
 
     photo = update.message.photo[-1]  # наибольшее разрешение
@@ -545,7 +565,6 @@ async def handle_admin_photo_upload(update: Update, context: ContextTypes.DEFAUL
     save_image(bytes(file_bytes), extension="jpg")
 
     await update.message.reply_text(
-        "✅ *Картинка расписания успешно загружена!*",
+        get_text('admin.image_uploaded', lang),
         parse_mode='Markdown'
     )
-

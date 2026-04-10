@@ -1,6 +1,8 @@
 """
 Отправка Telegram-уведомлений из веб-приложения
 """
+from __future__ import annotations
+
 import logging
 from telegram import Bot
 from telegram.error import TelegramError

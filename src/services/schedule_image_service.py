@@ -2,6 +2,8 @@
 Сервис управления картинкой расписания.
 Хранится только один файл; при загрузке нового старый удаляется.
 """
+from __future__ import annotations
+
 from pathlib import Path
 
 _UPLOADS_DIR = Path("uploads")

@@ -1,8 +1,10 @@
 """
 Модель тренировки
 """
+from __future__ import annotations
+
 from datetime import datetime
-from typing import List, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING
 from sqlalchemy import String, Integer, DateTime, Text, ForeignKey, select, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship, column_property
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,7 +23,7 @@ class Workout(Base, TimestampMixin):
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     datetime: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
@@ -38,7 +40,7 @@ class Workout(Base, TimestampMixin):
         default=999,
         nullable=False
     )
-    trainer_id: Mapped[int | None] = mapped_column(
+    trainer_id: Mapped[Optional[int]] = mapped_column(
         Integer,
         ForeignKey('users.id'),
         nullable=True
