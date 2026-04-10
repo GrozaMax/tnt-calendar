@@ -119,7 +119,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         # Тренер/Админ: "Тренерская" — всегда возвращаем на стартовое меню раздела
         title = get_text('trainer.section_title', lang)
         kb = trainer_section_keyboard(lang)
-        await _nav_edit_or_send(update, context, f"*{title}*\n\nВыберите раздел:", kb, parse_mode='Markdown')
+        await _nav_edit_or_send(update, context, f"*{title}*\n\n{get_text('trainer.select_section', lang)}", kb, parse_mode='Markdown')
         context.user_data['current_screen'] = 'trainer_section'
 
     elif text in REPLY_ADMIN_PANEL_TEXTS:
@@ -140,8 +140,12 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.error(f'Update {update} caused error {context.error}', exc_info=context.error)
     
     if update and update.effective_message:
-        await update.effective_message.reply_text(
-            "❌ Произошла ошибка при обработке вашего запроса. "
-            "Пожалуйста, попробуйте позже."
-        )
-
+        # Здесь нет context.user_data если произошла ошибка до загрузки пользователя, так что используем fallback
+        from src.locales import get_text
+        lang = 'ru'
+        if hasattr(context, 'user_data') and context.user_data and 'current_user' in context.user_data:
+            user = context.user_data.get('current_user')
+            if user and 'language' in user.__dict__:
+                lang = user.__dict__['language'] or 'ru'
+        
+        await update.effective_message.reply_text(get_text('common.error_processing', lang))

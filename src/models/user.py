@@ -1,9 +1,11 @@
 """
 Модель пользователя
 """
+from __future__ import annotations
+
 import enum
-from typing import List, TYPE_CHECKING
-from sqlalchemy import String, Integer, Enum, BigInteger
+from typing import List, Optional, TYPE_CHECKING
+from sqlalchemy import String, Integer, Enum, BigInteger, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.base import Base, TimestampMixin
@@ -31,9 +33,9 @@ class User(Base, TimestampMixin):
         nullable=False,
         index=True
     )
-    username: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    username: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     first_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    last_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    last_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole),
         default=UserRole.ATHLETE,
@@ -44,7 +46,41 @@ class User(Base, TimestampMixin):
         default='ru',
         nullable=False
     )
-    
+    notifications_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False,
+    )
+    web_password_hash: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+        default=None,
+    )
+
+    # ── Password helpers (hashlib, no external deps) ──────────────
+    @staticmethod
+    def _hash_password(plain: str, salt: str) -> str:
+        import hashlib
+        return hashlib.sha256(f"{salt}:{plain}".encode()).hexdigest()
+
+    def set_web_password(self, plain: str) -> None:
+        """Установить индивидуальный пароль для веб-панели."""
+        import secrets
+        salt = secrets.token_hex(16)
+        h = self._hash_password(plain, salt)
+        self.web_password_hash = f"{salt}${h}"
+
+    def check_web_password(self, plain: str) -> bool:
+        """Проверить пароль. Возвращает False если пароль не задан."""
+        if not self.web_password_hash or "$" not in self.web_password_hash:
+            return False
+        salt, stored_hash = self.web_password_hash.split("$", 1)
+        return self._hash_password(plain, salt) == stored_hash
+
+    @property
+    def has_web_password(self) -> bool:
+        return bool(self.web_password_hash)
+
     # Relationships
     workouts: Mapped[List["Workout"]] = relationship(
         "Workout",
@@ -69,7 +105,8 @@ class User(Base, TimestampMixin):
     
     def is_admin(self) -> bool:
         """Проверка, является ли пользователь админом"""
-        return self.role == UserRole.ADMIN
+        from src.config import Config
+        return self.role == UserRole.ADMIN or self.telegram_id in Config.ADMIN_TELEGRAM_IDS
     
     def is_trainer(self) -> bool:
         """Проверка, является ли пользователь тренером (строго)"""
@@ -77,7 +114,7 @@ class User(Base, TimestampMixin):
     
     def has_trainer_permissions(self) -> bool:
         """Проверка, есть ли у пользователя права тренера (включая админа)"""
-        return self.role in (UserRole.TRAINER, UserRole.ADMIN)
+        return self.is_admin() or self.role == UserRole.TRAINER
     
     def is_athlete(self) -> bool:
         """Проверка, является ли пользователь атлетом"""

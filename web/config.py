@@ -15,8 +15,10 @@ class WebConfig:
     PORT = int(os.getenv("PORT", os.getenv("WEB_PORT", "8000")))
     DEBUG = os.getenv("WEB_DEBUG", "true").lower() == "true"
     
-    # Безопасность
-    SECRET_KEY = os.getenv("WEB_SECRET_KEY", "your-secret-key-change-in-production")
+    # Безопасность (задавайте в .env на сервере; без дефолта в образе)
+    SECRET_KEY = os.getenv("WEB_SECRET_KEY", "").strip()
+    # Секрет для входа в веб (никогда не храните реальное значение в клиентском JS)
+    WEB_LOGIN_SECRET = os.getenv("WEB_LOGIN_SECRET", "").strip()
     
     # Токены доступа (генерируются для админов и тренеров)
     # Формат: telegram_id:token
@@ -28,7 +30,22 @@ class WebConfig:
 
     # CORS (если понадобится)
     CORS_ORIGINS = ["*"]
-    
+
+    @classmethod
+    def get_web_login_secret(cls) -> str:
+        """Пароль для входа тренеров/админов в веб. В production задаётся только через окружение."""
+        if cls.WEB_LOGIN_SECRET:
+            return cls.WEB_LOGIN_SECRET
+        if cls.DEBUG:
+            import logging
+            logging.getLogger(__name__).warning(
+                "WEB_LOGIN_SECRET не задан в окружении; используется небезопасное значение для разработки"
+            )
+            return "__dev_only_change_via_env_web_login_secret__"
+        raise RuntimeError(
+            "Задайте WEB_LOGIN_SECRET в окружении при WEB_DEBUG=false"
+        )
+
     @classmethod
     def validate_token(cls, token: str) -> bool:
         """Проверка валидности токена"""

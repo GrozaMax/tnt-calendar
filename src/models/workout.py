@@ -1,9 +1,11 @@
 """
 Модель тренировки
 """
+from __future__ import annotations
+
 from datetime import datetime
-from typing import List, TYPE_CHECKING
-from sqlalchemy import String, Integer, DateTime, Text, ForeignKey, select, func
+from typing import List, Optional, TYPE_CHECKING
+from sqlalchemy import String, Integer, DateTime, Text, ForeignKey, select, func, inspect as sa_inspect
 from sqlalchemy.orm import Mapped, mapped_column, relationship, column_property
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -21,7 +23,7 @@ class Workout(Base, TimestampMixin):
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     datetime: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
@@ -38,7 +40,7 @@ class Workout(Base, TimestampMixin):
         default=999,
         nullable=False
     )
-    trainer_id: Mapped[int | None] = mapped_column(
+    trainer_id: Mapped[Optional[int]] = mapped_column(
         Integer,
         ForeignKey('users.id'),
         nullable=True
@@ -67,13 +69,21 @@ class Workout(Base, TimestampMixin):
         """
         Текущее количество участников
         
-        Использует hybrid property для поддержки как Python, так и SQL выражений
+        Использует hybrid property для поддержки как Python, так и SQL выражений.
+        Считает по загруженной коллекции bookings (selectinload), без lazy load —
+        иначе в async-сессии будет ошибка.
         """
         try:
-            # В Python context
-            if hasattr(self, '__dict__') and 'bookings' in self.__dict__:
-                return len([b for b in self.bookings if b.is_active])
-            return 0
+            try:
+                inst = sa_inspect(self)
+            except Exception:
+                return 0
+            if inst is None:
+                return 0
+            # Пока связь не подгружена — не обращаемся к self.bookings
+            if "bookings" in inst.unloaded:
+                return 0
+            return len([b for b in self.bookings if b.is_active])
         except Exception:
             return 0
     

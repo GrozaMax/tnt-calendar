@@ -1,6 +1,8 @@
 """
 Отправка Telegram-уведомлений из веб-приложения
 """
+from __future__ import annotations
+
 import logging
 from telegram import Bot
 from telegram.error import TelegramError
@@ -17,7 +19,7 @@ async def notify_athletes_workout_cancelled(token: str,
                                             reason: str = "") -> None:
     """
     Уведомить атлетов об отмене/удалении тренировки.
-    athletes: список dict с ключами 'telegram_id' и 'language'.
+    athletes: список dict с ключами 'telegram_id', 'language', 'notifications_enabled'.
     Использует Bot напрямую (без Application) — для вызова из FastAPI.
     """
     if not athletes:
@@ -26,6 +28,8 @@ async def notify_athletes_workout_cancelled(token: str,
     bot = Bot(token=token)
     async with bot:
         for athlete in athletes:
+            if not athlete.get('notifications_enabled', True):
+                continue
             telegram_id = athlete['telegram_id']
             lang = athlete.get('language', 'ru')
             title = get_text('notifications.workout_cancelled_title', lang)

@@ -5,6 +5,7 @@ const API_URL = '/api';
 let authToken = localStorage.getItem('authToken');
 let currentUser = null;
 let trainersList = [];
+let currentWeekOffset = 0;  // 0 = текущая неделя, -1 = прошлая, +1 = следующая
 
 // Утилиты
 function showError(message) {
@@ -86,12 +87,12 @@ async function apiRequest(endpoint, options = {}) {
 }
 
 // Авторизация
-async function login(telegramId, secretCode) {
+async function login(loginIdentifier, secretCode) {
     try {
         const data = await apiRequest('/auth/login', {
             method: 'POST',
             body: JSON.stringify({
-                telegram_id: parseInt(telegramId),
+                login: String(loginIdentifier).trim(),
                 secret_code: secretCode
             })
         });
@@ -490,6 +491,8 @@ function displayUsers(users) {
             'admin': '👑'
         }[user.role] || '👤';
         
+        const staff = user.role === 'trainer' || user.role === 'admin';
+        const pwdHint = user.has_web_password ? ' (есть)' : '';
         tr.innerHTML = `
             <td>${user.id}</td>
             <td><strong>${user.full_name}</strong></td>
@@ -498,6 +501,7 @@ function displayUsers(users) {
             <td>${formatDate(user.created_at)}</td>
             <td>
                 <div class="actions">
+                    ${staff ? `<button type="button" class="btn btn-sm btn-secondary" title="Индивидуальный пароль веб-панели" onclick="setUserWebPassword(${user.id})">🔑 Пароль${pwdHint}</button>` : ''}
                     <button class="btn btn-sm btn-secondary" onclick="changeUserRole(${user.id}, '${user.role}')">Изменить роль</button>
                     <button class="btn btn-sm btn-danger" onclick="deleteUser(${user.id}, '${user.full_name.replace(/'/g, "\\'")}')">Удалить</button>
                 </div>
@@ -557,6 +561,25 @@ async function confirmRoleChange() {
 }
 window.confirmRoleChange = confirmRoleChange;
 
+async function setUserWebPassword(userId) {
+    const pw = prompt('Новый пароль для входа в веб-панель (минимум 4 символа):');
+    if (pw === null) return;
+    if (String(pw).length < 4) {
+        showError('Пароль не короче 4 символов');
+        return;
+    }
+    try {
+        await apiRequest(`/users/${userId}/password`, {
+            method: 'PATCH',
+            body: JSON.stringify({ password: String(pw) })
+        });
+        showSuccess('Пароль сохранён');
+        loadUsers();
+    } catch (error) {
+        showError(error.message);
+    }
+}
+
 async function deleteUser(userId, userName) {
     if (!confirm(`Удалить пользователя "${userName}"?\n\nЭто действие необратимо:\n— записи на тренировки будут удалены\n— тренировки, где он тренер, станут без тренера`)) {
         return;
@@ -605,6 +628,50 @@ function switchTab(tabName) {
         loadTemplate();
     } else if (tabName === 'scheduleImage') {
         loadScheduleImage();
+    } else if (tabName === 'gymSettings') {
+        loadGymSettings();
+    }
+}
+
+async function loadGymSettings() {
+    const el = document.getElementById('gymSettingsBody');
+    if (!el) return;
+    el.innerHTML = '<div class="loading">Загрузка...</div>';
+    try {
+        const s = await apiRequest('/settings');
+        el.innerHTML = `
+            <div class="form-group">
+                <label>Максимум записей атлета в один календарный день</label>
+                <input type="number" class="form-control" id="maxBookingsPerDay" min="1" max="20"
+                    value="${s.max_bookings_per_day}">
+                <p class="hint" style="margin-top:8px;font-size:0.9em;color:#666;">
+                    Действует для бота при записи атлетов. От 1 до 20.
+                </p>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="saveGymSettings()">Сохранить</button>
+        `;
+    } catch (e) {
+        el.innerHTML = `<div class="alert alert-error">Ошибка: ${e.message}</div>`;
+    }
+}
+
+async function saveGymSettings() {
+    const raw = document.getElementById('maxBookingsPerDay');
+    if (!raw) return;
+    const maxBookingsPerDay = parseInt(raw.value, 10);
+    if (Number.isNaN(maxBookingsPerDay) || maxBookingsPerDay < 1 || maxBookingsPerDay > 20) {
+        showError('Введите число от 1 до 20');
+        return;
+    }
+    try {
+        await apiRequest('/settings', {
+            method: 'PATCH',
+            body: JSON.stringify({ max_bookings_per_day: maxBookingsPerDay })
+        });
+        showSuccess('Настройки сохранены');
+        loadGymSettings();
+    } catch (e) {
+        showError(e.message);
     }
 }
 
@@ -944,52 +1011,65 @@ function formatDateLocal(date) {
     return `${year}-${month}-${day}`;
 }
 
+// ─── Навигация по неделям ─────────────────────────────────────────────────────
+
+function getWeekMonday(offset) {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - daysFromMonday + (offset * 7));
+    monday.setHours(0, 0, 0, 0);
+    return monday;
+}
+
+function navigateWeek(direction) {
+    if (direction === 0) {
+        currentWeekOffset = 0;
+    } else {
+        currentWeekOffset += direction;
+    }
+    loadWeekWorkouts();
+}
+
+function updateWeekLabel(monday, sunday) {
+    const label = document.getElementById('weekRangeLabel');
+    if (!label) return;
+    const fmt = d => `${d.getDate()}.${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+    const text = `${fmt(monday)} — ${fmt(sunday)} ${monthNames[sunday.getMonth()]} ${sunday.getFullYear()}`;
+    label.textContent = currentWeekOffset === 0 ? `📍 ${text}` : text;
+    label.style.color = currentWeekOffset === 0 ? '' : '#1976d2';
+}
+
 // Загрузка тренировок на неделю
 async function loadWeekWorkouts() {
     const container = document.getElementById('weekWorkouts');
     container.innerHTML = '<div class="loading">Загрузка...</div>';
     
-    // Вычисляем понедельник текущей недели
-    const today = new Date();
-    const dayOfWeek = today.getDay(); // 0 = воскресенье, 1 = понедельник, ..., 6 = суббота
-    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Если воскресенье, то 6 дней назад
-    
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - daysFromMonday);
-    
+    const monday = getWeekMonday(currentWeekOffset);
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
     
     const dateFrom = formatDateLocal(monday);
     const dateTo = formatDateLocal(sunday);
     
-    console.log('📅 Загрузка недели:');
-    console.log('  Сегодня:', formatDateLocal(today), '(день недели:', today.getDay(), ')');
-    console.log('  Понедельник:', dateFrom);
-    console.log('  Воскресенье:', dateTo);
+    updateWeekLabel(monday, sunday);
     
     try {
         const workouts = await apiRequest(`/workouts/?date_from=${dateFrom}&date_to=${dateTo}`);
-        console.log('📊 Получено тренировок:', workouts.length);
-        displayWeekWorkouts(workouts);
+        displayWeekWorkouts(workouts, monday);
     } catch (error) {
         container.innerHTML = `<div class="alert alert-error">Ошибка загрузки: ${error.message}</div>`;
-        console.error('Load week workouts error:', error);
     }
 }
 
-function displayWeekWorkouts(workouts) {
+function displayWeekWorkouts(workouts, mondayOverride) {
     const container = document.getElementById('weekWorkouts');
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // Вычисляем понедельник текущей недели
-    const dayOfWeek = today.getDay(); // 0 = воскресенье, 1 = понедельник, ..., 6 = суббота
-    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - daysFromMonday);
-    monday.setHours(0, 0, 0, 0);
+    const monday = mondayOverride || getWeekMonday(currentWeekOffset);
     
     // Группируем тренировки по дням
     const workoutsByDate = {};
@@ -1070,12 +1150,14 @@ function showLoginPage() {
                 <h1>🏋️ TNT Admin panel</h1>
                 <form id="loginForm">
                     <div class="form-group">
-                        <label>Telegram ID</label>
-                        <input type="number" class="form-control" id="telegramId" required>
+                        <label>Логин (Telegram ID или username)</label>
+                        <input type="text" class="form-control" id="loginIdentifier" required
+                            autocomplete="username" inputmode="text">
                     </div>
                     <div class="form-group">
-                        <label>Секретный код</label>
-                        <input type="password" class="form-control" id="secretCode" required value="secret123">
+                        <label>Пароль</label>
+                        <input type="password" class="form-control" id="secretCode" required
+                            autocomplete="current-password">
                     </div>
                     <button type="submit" class="btn btn-primary">Войти</button>
                 </form>
@@ -1085,10 +1167,10 @@ function showLoginPage() {
     
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const telegramId = document.getElementById('telegramId').value;
+        const loginIdentifier = document.getElementById('loginIdentifier').value;
         const secretCode = document.getElementById('secretCode').value;
         
-        const success = await login(telegramId, secretCode);
+        const success = await login(loginIdentifier, secretCode);
         if (success) {
             location.reload();
         }
@@ -1112,6 +1194,7 @@ window.bulkCreateSchedule = bulkCreateSchedule;
 window.deleteWorkoutsByRange = deleteWorkoutsByRange;
 window.clearAllWorkouts = clearAllWorkouts;
 window.changeUserRole = changeUserRole;
+window.setUserWebPassword = setUserWebPassword;
 window.deleteUser = deleteUser;
 window.openModal = openModal;
 window.closeModal = closeModal;
@@ -1128,6 +1211,9 @@ window.seedTemplateFromFile = seedTemplateFromFile;
 window.seedTemplateFromFileForce = seedTemplateFromFileForce;
 window.uploadScheduleImage = uploadScheduleImage;
 window.deleteScheduleImage = deleteScheduleImage;
+window.navigateWeek = navigateWeek;
+window.loadGymSettings = loadGymSettings;
+window.saveGymSettings = saveGymSettings;
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
@@ -1166,6 +1252,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Вкладка "Картинка расписания"
         const scheduleImageTab = document.getElementById('scheduleImageTab');
         if (scheduleImageTab) scheduleImageTab.style.display = 'none';
+        const gymSettingsTab = document.getElementById('gymSettingsTab');
+        if (gymSettingsTab) gymSettingsTab.style.display = 'none';
     }
 
     // Обработчики форм

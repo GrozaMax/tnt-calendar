@@ -29,7 +29,7 @@ async def show_trainer_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = user.language if user else 'ru'
     title = get_text('trainer.section_title', lang)
     await query.edit_message_text(
-        f"*{title}*\n\nВыберите раздел:",
+        f"*{title}*\n\n{get_text('trainer.select_section', lang)}",
         reply_markup=trainer_section_keyboard(lang),
         parse_mode='Markdown'
     )
@@ -72,8 +72,8 @@ async def show_trainer_workouts(update: Update, context: ContextTypes.DEFAULT_TY
     
     if not workouts:
         text = f"📅 *{title}*\n\n"
-        text += "У вас нет запланированных тренировок\n\n"
-        text += "💡 Для создания тренировок используйте веб-интерфейс:\n"
+        text += f"{get_text('trainer.no_workouts', lang)}\n\n"
+        text += f"{get_text('trainer.use_web', lang)}\n"
         text += "https://your-domain.com"
         
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup
@@ -86,7 +86,7 @@ async def show_trainer_workouts(update: Update, context: ContextTypes.DEFAULT_TY
         )
         return
 
-    text = f"*{title}*\n\nНайдено: *{len(workouts)}*\n\n"
+    text = f"*{title}*\n\n{get_text('trainer.found_count', lang, count=len(workouts))}\n\n"
 
     # Создаём кнопки для каждой тренировки
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
@@ -135,17 +135,17 @@ async def _render_trainer_workout(query, user: User, workout_id: int, lang: str)
         workout = await workout_repo.get_by_id(workout_id, load_relations=True)
 
         if not workout:
-            await query.answer("❌ Тренировка не найдена", show_alert=True)
+            await query.answer(get_text('trainer.workout_not_found', lang), show_alert=True)
             return
 
         if workout.trainer_id != user.id and user.role != UserRole.ADMIN:
-            await query.answer("❌ Это не ваша тренировка", show_alert=True)
+            await query.answer(get_text('trainer.not_your_workout', lang), show_alert=True)
             return
 
         text = f"📋 *{workout.name}*\n\n"
         text += f"🕐 {workout.datetime.strftime('%d.%m.%Y %H:%M')}\n"
-        text += f"⏱ {workout.duration} мин\n"
-        text += f"👥 Записалось: *{workout.current_participants}/{workout.max_participants}*\n"
+        text += f"{get_text('schedule.duration', lang, duration=workout.duration)}\n"
+        text += f"{get_text('schedule.participants', lang, count=workout.current_participants, max=workout.max_participants)}\n"
 
         if workout.description:
             text += f"\n📝 {workout.description}\n"
@@ -156,7 +156,7 @@ async def _render_trainer_workout(query, user: User, workout_id: int, lang: str)
 
         keyboard = []
         if bookings:
-            text += f"\n👥 *Список участников:*\n\n"
+            text += f"\n{get_text('admin.participants_list', lang)}\n\n"
             for i, booking in enumerate(bookings[:20], 1):
                 text += f"{i}. {booking.user.full_name}"
                 if booking.user.username:
@@ -164,14 +164,14 @@ async def _render_trainer_workout(query, user: User, workout_id: int, lang: str)
                 text += "\n"
                 keyboard.append([
                     InlineKeyboardButton(
-                        f"❌ Удалить {booking.user.full_name}",
+                        get_text('trainer.remove_athlete', lang, name=booking.user.full_name),
                         callback_data=f'trainer_remove_athlete:{booking.id}:{workout_id}'
                     )
                 ])
             if len(bookings) > 20:
-                text += f"\n... и ещё {len(bookings) - 20}"
+                text += f"\n{get_text('admin.and_more', lang, count=len(bookings) - 20)}"
         else:
-            text += "\nℹ️ Пока никто не записался"
+            text += f"\n{get_text('admin.no_participants', lang)}"
 
         keyboard.append([InlineKeyboardButton(get_text('menu.back', lang), callback_data='trainer_menu')])
 
@@ -192,6 +192,7 @@ async def remove_athlete_from_workout(update: Update, context: ContextTypes.DEFA
 
     athlete_telegram_id = None
     athlete_lang = 'ru'
+    athlete_notifications_enabled = True
     workout_name = ''
     workout_datetime_str = ''
 
@@ -203,6 +204,7 @@ async def remove_athlete_from_workout(update: Update, context: ContextTypes.DEFA
         if booking and booking.user:
             athlete_telegram_id = booking.user.telegram_id
             athlete_lang = booking.user.language or 'ru'
+            athlete_notifications_enabled = booking.user.notifications_enabled
         if booking and booking.workout:
             workout_name = booking.workout.name
             workout_datetime_str = booking.workout.datetime.strftime('%d.%m.%Y %H:%M')
@@ -211,7 +213,8 @@ async def remove_athlete_from_workout(update: Update, context: ContextTypes.DEFA
         success, message = await booking_service.cancel_booking_by_trainer(
             booking_id=booking_id,
             trainer_id=user.id,
-            is_admin=is_admin
+            is_admin=is_admin,
+            lang=lang
         )
 
     await query.answer(message, show_alert=True)
@@ -222,7 +225,8 @@ async def remove_athlete_from_workout(update: Update, context: ContextTypes.DEFA
             athlete_telegram_id=athlete_telegram_id,
             workout_name=workout_name,
             workout_datetime=workout_datetime_str,
-            athlete_lang=athlete_lang
+            athlete_lang=athlete_lang,
+            notifications_enabled=athlete_notifications_enabled,
         )
 
     if success:
@@ -259,11 +263,11 @@ async def show_free_slots(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     back_btn = [[InlineKeyboardButton(get_text('menu.back', lang), callback_data='trainer_menu')]]
     if not workouts:
-        text = f"*{get_text('trainer.free_slots_btn', lang)}*\n\nСвободных тренировок (без тренера) на ближайшие 7 дней нет."
+        text = f"*{get_text('trainer.free_slots_btn', lang)}*\n\n{get_text('trainer.no_free_slots', lang)}"
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(back_btn), parse_mode='Markdown')
         return
 
-    text = f"*{get_text('trainer.free_slots_btn', lang)}*\n\nВыберите тренировку, чтобы назначить себя:\n"
+    text = f"*{get_text('trainer.free_slots_btn', lang)}*\n\n{get_text('trainer.select_to_assign', lang)}\n"
     keyboard = []
     for workout in workouts[:20]:
         button_text = f"{workout.datetime.strftime('%d.%m %H:%M')} - {workout.name} ({workout.current_participants}/{workout.max_participants})"
@@ -280,6 +284,7 @@ async def assign_trainer_to_workout(update: Update, context: ContextTypes.DEFAUL
     await query.answer()
 
     user: User = context.user_data.get('current_user')
+    lang = user.language if user else 'ru'
 
     _, workout_id = query.data.split(':')
     workout_id = int(workout_id)
@@ -289,18 +294,17 @@ async def assign_trainer_to_workout(update: Update, context: ContextTypes.DEFAUL
         workout = await workout_repo.get_by_id(workout_id)
 
         if not workout:
-            await query.answer("❌ Тренировка не найдена", show_alert=True)
+            await query.answer(get_text('trainer.workout_not_found', lang), show_alert=True)
             return
 
         if workout.trainer_id is not None:
-            await query.answer("⚠️ На эту тренировку уже назначен тренер", show_alert=True)
+            await query.answer(get_text('trainer.already_assigned', lang), show_alert=True)
             return
 
         await workout_repo.assign_trainer(workout_id, user.id)
         await session.commit()
 
-    await query.answer(f"✅ Вы назначены на тренировку {workout.name}!", show_alert=True)
+    await query.answer(get_text('trainer.you_assigned', lang, name=workout.name), show_alert=True)
     # Обновляем список свободных слотов
     query.data = 'trainer_free_slots'
     await show_free_slots(update, context)
-
