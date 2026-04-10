@@ -100,6 +100,29 @@ async def _migrate_workouts_trainer_nullable() -> None:
     logger.info("Миграция завершена: workouts.trainer_id теперь nullable")
 
 
+async def _migrate_users_web_password_hash() -> None:
+    """Добавляет users.web_password_hash для существующих SQLite БД."""
+    if "sqlite" not in Config.DATABASE_URL:
+        return
+    import logging
+    from sqlalchemy import text
+
+    logger = logging.getLogger(__name__)
+    async with engine.connect() as conn:
+        result = await conn.execute(text("PRAGMA table_info(users)"))
+        cols = {row[1] for row in result.fetchall()}
+        if "web_password_hash" in cols:
+            return
+    logger.info("Миграция: users.web_password_hash")
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "ALTER TABLE users ADD COLUMN web_password_hash "
+                "VARCHAR(255) DEFAULT NULL"
+            )
+        )
+
+
 async def init_db() -> None:
     """
     Инициализация базы данных.
@@ -108,6 +131,7 @@ async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     await _migrate_users_notifications_enabled()
+    await _migrate_users_web_password_hash()
     await _migrate_workouts_trainer_nullable()
     async with async_session_maker() as session:
         from src.database.repositories.settings_repository import SettingsRepository

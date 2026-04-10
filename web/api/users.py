@@ -24,6 +24,7 @@ class UserResponse(BaseModel):
     full_name: str
     role: str
     language: str
+    has_web_password: bool = False
     created_at: str
     
     class Config:
@@ -33,6 +34,11 @@ class UserResponse(BaseModel):
 class UserUpdateRole(BaseModel):
     """Обновление роли пользователя"""
     role: str = Field(..., pattern="^(athlete|trainer|admin)$")
+
+
+class SetPasswordRequest(BaseModel):
+    """Установка индивидуального пароля для веб-панели"""
+    password: str = Field(..., min_length=4, max_length=128)
 
 
 @router.get("/", response_model=List[UserResponse])
@@ -77,6 +83,7 @@ async def get_users(
                 full_name=u.full_name,
                 role=u.role.value,
                 language=u.language,
+                has_web_password=u.has_web_password,
                 created_at=u.created_at.isoformat()
             )
             for u in users
@@ -118,6 +125,7 @@ async def get_user(
             full_name=user.full_name,
             role=user.role.value,
             language=user.language,
+            has_web_password=user.has_web_password,
             created_at=user.created_at.isoformat()
         )
 
@@ -170,6 +178,7 @@ async def update_user_role(
             full_name=user.full_name,
             role=user.role.value,
             language=user.language,
+            has_web_password=user.has_web_password,
             created_at=user.created_at.isoformat()
         )
 
@@ -227,6 +236,39 @@ async def delete_user(
         )
 
         await session.commit()
+
+
+@router.patch("/{user_id}/password")
+async def set_user_password(
+    user_id: int,
+    body: SetPasswordRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Установить индивидуальный пароль для веб-панели.
+
+    Только для админов.
+    """
+    if not current_user.is_admin():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can set passwords"
+        )
+
+    async with get_session() as session:
+        user_repo = UserRepository(session)
+        user = await user_repo.get_by_id(user_id)
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+
+        user.set_web_password(body.password)
+        await session.commit()
+
+    return {"ok": True, "message": f"Password set for {user.full_name}"}
 
 
 @router.get("/stats/summary")

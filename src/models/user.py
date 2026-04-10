@@ -51,6 +51,35 @@ class User(Base, TimestampMixin):
         default=True,
         nullable=False,
     )
+    web_password_hash: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+        default=None,
+    )
+
+    # ── Password helpers (hashlib, no external deps) ──────────────
+    @staticmethod
+    def _hash_password(plain: str, salt: str) -> str:
+        import hashlib
+        return hashlib.sha256(f"{salt}:{plain}".encode()).hexdigest()
+
+    def set_web_password(self, plain: str) -> None:
+        """Установить индивидуальный пароль для веб-панели."""
+        import secrets
+        salt = secrets.token_hex(16)
+        h = self._hash_password(plain, salt)
+        self.web_password_hash = f"{salt}${h}"
+
+    def check_web_password(self, plain: str) -> bool:
+        """Проверить пароль. Возвращает False если пароль не задан."""
+        if not self.web_password_hash or "$" not in self.web_password_hash:
+            return False
+        salt, stored_hash = self.web_password_hash.split("$", 1)
+        return self._hash_password(plain, salt) == stored_hash
+
+    @property
+    def has_web_password(self) -> bool:
+        return bool(self.web_password_hash)
 
     # Relationships
     workouts: Mapped[List["Workout"]] = relationship(

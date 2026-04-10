@@ -1130,12 +1130,12 @@ function showLoginPage() {
                     <div class="form-group">
                         <label>Логин (Telegram ID или username)</label>
                         <input type="text" class="form-control" id="loginIdentifier" required
-                            autocomplete="username" inputmode="text" placeholder="например 123456789 или coach_name">
+                            autocomplete="username" inputmode="text">
                     </div>
                     <div class="form-group">
-                        <label>Секретный код</label>
+                        <label>Пароль</label>
                         <input type="password" class="form-control" id="secretCode" required
-                            autocomplete="current-password" placeholder="из переменной WEB_LOGIN_SECRET">
+                            autocomplete="current-password">
                     </div>
                     <button type="submit" class="btn btn-primary">Войти</button>
                 </form>

@@ -109,10 +109,18 @@ async def login(request: LoginRequest):
                 detail="Only trainers and admins can access web interface"
             )
         
-        if request.secret_code != WebConfig.get_web_login_secret():
+        # Проверяем пароль: сначала индивидуальный, потом общий секрет
+        password_ok = False
+        if user.has_web_password:
+            password_ok = user.check_web_password(request.secret_code)
+        else:
+            # Fallback: общий секрет из WEB_LOGIN_SECRET
+            password_ok = (request.secret_code == WebConfig.get_web_login_secret())
+
+        if not password_ok:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid secret code"
+                detail="Invalid password"
             )
         
         # Генерируем токен
