@@ -60,6 +60,8 @@ def trainer_section_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
         [InlineKeyboardButton(get_text('trainer.free_slots_btn', lang), callback_data='trainer_free_slots')],
         [InlineKeyboardButton(get_text('menu.back', lang), callback_data='main_menu')],
     ]
+
+
     return InlineKeyboardMarkup(keyboard)
 
 

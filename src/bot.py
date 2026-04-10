@@ -84,7 +84,8 @@ class TelegramBot:
         # Команды
         self.application.add_handler(CommandHandler("start", start_command))
         self.application.add_handler(CommandHandler("help", help_command))
-        
+
+
         # Обработчики callback запросов с декоратором ensure_user_exists
         
         # Главное меню

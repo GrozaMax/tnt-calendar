@@ -65,7 +65,7 @@ async def get_current_user(
             )
         
         # Проверяем права (только тренеры и админы)
-        if user.role == UserRole.ATHLETE:
+        if not user.has_trainer_permissions():
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied. Only trainers and admins allowed."
@@ -93,7 +93,7 @@ async def login(request: LoginRequest):
             )
         
         # Проверяем права
-        if user.role == UserRole.ATHLETE:
+        if not user.has_trainer_permissions():
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Only trainers and admins can access web interface"

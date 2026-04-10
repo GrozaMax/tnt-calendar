@@ -47,7 +47,7 @@ async def get_users(
     
     Только для админов.
     """
-    if user.role != UserRole.ADMIN:
+    if not user.is_admin():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admins can view users list"
@@ -93,7 +93,7 @@ async def get_user(
     
     Только для админов.
     """
-    if current_user.role != UserRole.ADMIN:
+    if not current_user.is_admin():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admins can view user details"
@@ -238,7 +238,7 @@ async def get_users_stats(
     
     Только для админов.
     """
-    if current_user.role != UserRole.ADMIN:
+    if not current_user.is_admin():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admins can view statistics"

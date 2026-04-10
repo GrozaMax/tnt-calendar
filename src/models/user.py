@@ -69,7 +69,8 @@ class User(Base, TimestampMixin):
     
     def is_admin(self) -> bool:
         """Проверка, является ли пользователь админом"""
-        return self.role == UserRole.ADMIN
+        from src.config import Config
+        return self.role == UserRole.ADMIN or self.telegram_id in Config.ADMIN_TELEGRAM_IDS
     
     def is_trainer(self) -> bool:
         """Проверка, является ли пользователь тренером (строго)"""
@@ -77,7 +78,7 @@ class User(Base, TimestampMixin):
     
     def has_trainer_permissions(self) -> bool:
         """Проверка, есть ли у пользователя права тренера (включая админа)"""
-        return self.role in (UserRole.TRAINER, UserRole.ADMIN)
+        return self.is_admin() or self.role == UserRole.TRAINER
     
     def is_athlete(self) -> bool:
         """Проверка, является ли пользователь атлетом"""
