@@ -491,6 +491,8 @@ function displayUsers(users) {
             'admin': '👑'
         }[user.role] || '👤';
         
+        const staff = user.role === 'trainer' || user.role === 'admin';
+        const pwdHint = user.has_web_password ? ' (есть)' : '';
         tr.innerHTML = `
             <td>${user.id}</td>
             <td><strong>${user.full_name}</strong></td>
@@ -499,6 +501,7 @@ function displayUsers(users) {
             <td>${formatDate(user.created_at)}</td>
             <td>
                 <div class="actions">
+                    ${staff ? `<button type="button" class="btn btn-sm btn-secondary" title="Индивидуальный пароль веб-панели" onclick="setUserWebPassword(${user.id})">🔑 Пароль${pwdHint}</button>` : ''}
                     <button class="btn btn-sm btn-secondary" onclick="changeUserRole(${user.id}, '${user.role}')">Изменить роль</button>
                     <button class="btn btn-sm btn-danger" onclick="deleteUser(${user.id}, '${user.full_name.replace(/'/g, "\\'")}')">Удалить</button>
                 </div>
@@ -557,6 +560,25 @@ async function confirmRoleChange() {
     }
 }
 window.confirmRoleChange = confirmRoleChange;
+
+async function setUserWebPassword(userId) {
+    const pw = prompt('Новый пароль для входа в веб-панель (минимум 4 символа):');
+    if (pw === null) return;
+    if (String(pw).length < 4) {
+        showError('Пароль не короче 4 символов');
+        return;
+    }
+    try {
+        await apiRequest(`/users/${userId}/password`, {
+            method: 'PATCH',
+            body: JSON.stringify({ password: String(pw) })
+        });
+        showSuccess('Пароль сохранён');
+        loadUsers();
+    } catch (error) {
+        showError(error.message);
+    }
+}
 
 async function deleteUser(userId, userName) {
     if (!confirm(`Удалить пользователя "${userName}"?\n\nЭто действие необратимо:\n— записи на тренировки будут удалены\n— тренировки, где он тренер, станут без тренера`)) {
@@ -1172,6 +1194,7 @@ window.bulkCreateSchedule = bulkCreateSchedule;
 window.deleteWorkoutsByRange = deleteWorkoutsByRange;
 window.clearAllWorkouts = clearAllWorkouts;
 window.changeUserRole = changeUserRole;
+window.setUserWebPassword = setUserWebPassword;
 window.deleteUser = deleteUser;
 window.openModal = openModal;
 window.closeModal = closeModal;

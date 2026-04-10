@@ -162,6 +162,7 @@ _API_MODULES = [
     'web.api.users',
     'web.api.schedule_template',
     'web.api.business_settings',
+    'web.api.auth',
 ]
 
 

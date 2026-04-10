@@ -9,7 +9,7 @@
 ## Недавние изменения (актуальный код)
 
 - **Лимит записей атлета в календарный день**: значение в БД (`app_settings`, ключ `max_bookings_per_day`), дефолт и диапазон в `src/constants.py`; читает `BookingService`; админ меняет во вкладке веба «Настройки зала» и через `GET/PATCH /api/settings`.
-- **Веб-вход**: `POST /api/auth/login` с полями `login` (Telegram ID **или** username без `@`) и `secret_code` из **`WEB_LOGIN_SECRET`** (в `.env`, не в JS). При пустом секрете и `WEB_DEBUG=true` — dev-заглушка с предупреждением в лог.
+- **Веб-вход**: `POST /api/auth/login` — логин (Telegram ID или username) и `secret_code`: если у пользователя задан **`web_password_hash`** (SHA-256 + соль в `User`), проверяется он; иначе fallback на **`WEB_LOGIN_SECRET`**. Кнопка «🔑 Пароль» в вебе (админ) → `PATCH /api/users/{id}/password`.
 - **Пользователь**: `notifications_enabled` (bool); в боте «Настройки» — переключатель; исходящие уведомления атлетам/тренерам учитывают флаг.
 - **`Workout.current_participants`**: Python-геттер hybrid использует `sqlalchemy.inspect(self).unloaded` для проверки загрузки `bookings` (совместимо с `selectinload` в репозитории); для записи в сервисе используется **`get_current_participants_async(session)`**.
 - **Миграции SQLite** в `connection.py`: nullable `trainer_id`, колонка `users.notifications_enabled`, таблица `app_settings`; при `init_db` — дефолт для лимита дня.
@@ -45,6 +45,8 @@ cp .env.example .env   # заполнить TELEGRAM_BOT_TOKEN, WEB_LOGIN_SECRET
 python main.py         # бот
 python run_web.py      # веб
 ```
+
+**Docker (два контейнера):** `docker compose up -d` — общий volume `app_data`: SQLite (`/app/data/…`) и **`UPLOADS_DIR=/app/data/uploads`** для картинки расписания. См. `DEPLOY.md` (Oracle Cloud / VPS).
 
 ## Примечание по `brief.md`
 

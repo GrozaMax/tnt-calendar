@@ -15,8 +15,8 @@ class WebConfig:
     PORT = int(os.getenv("PORT", os.getenv("WEB_PORT", "8000")))
     DEBUG = os.getenv("WEB_DEBUG", "true").lower() == "true"
     
-    # Безопасность
-    SECRET_KEY = os.getenv("WEB_SECRET_KEY", "your-secret-key-change-in-production")
+    # Безопасность (задавайте в .env на сервере; без дефолта в образе)
+    SECRET_KEY = os.getenv("WEB_SECRET_KEY", "").strip()
     # Секрет для входа в веб (никогда не храните реальное значение в клиентском JS)
     WEB_LOGIN_SECRET = os.getenv("WEB_LOGIN_SECRET", "").strip()
     

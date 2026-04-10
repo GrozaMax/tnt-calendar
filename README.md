@@ -1,247 +1,154 @@
-# CrossFit Hub Bot 🏋️‍♂️
+# TNT Calendar
 
-Telegram бот для управления расписанием и бронированием тренировок в кроссфит-зале.
+Telegram-бот + веб-панель для управления расписанием и записью на тренировки в спортивном зале.
 
-## 🎯 Возможности
+## Возможности
 
-### Для Атлетов:
-- 📅 Просмотр расписания на сегодня и завтра
-- ✅ Запись на тренировки (максимум 2 в день)
-- ❌ Отмена записи
-- 📋 Просмотр своих записей
+### Telegram-бот
 
-### Для Тренеров (в разработке):
-- 🗓️ Бронирование слотов под свои тренировки
-- 👥 Просмотр списка участников
-- ➕ Добавление/удаление участников
+**Атлеты:**
+- Просмотр расписания на неделю вперёд (7 дней)
+- Запись на тренировку / отмена записи
+- Просмотр своих записей
+- Настройки: язык (RU, UA, EN, DE, GE), включение/выключение уведомлений
 
-### Для Администраторов (в разработке):
-- ⚙️ Управление расписанием
-- 👤 Управление правами пользователей
+**Тренеры:**
+- Просмотр наполненности своих классов
+- Добавление/удаление участников (Coach's Override)
 
-## 🚀 Быстрый старт
+**Администраторы:**
+- Управление расписанием, загрузка картинки расписания
+- Назначение ролей пользователям
 
-### Требования
+### Веб-панель (FastAPI)
 
-- Python 3.9 или выше
-- Telegram Bot Token (получить у [@BotFather](https://t.me/BotFather))
+- CRUD тренировок: создание, редактирование, удаление, массовое создание по шаблону
+- Управление пользователями: роли, индивидуальные пароли для входа в веб
+- Шаблон недельного расписания
+- Настройки зала: лимит записей атлета в день (настраиваемый)
+- Загрузка картинки расписания
 
-### Установка
+## Быстрый старт (локально)
 
-1. **Клонируйте репозиторий:**
+**Требования:** Python 3.9+, токен бота от [@BotFather](https://t.me/BotFather).
+
 ```bash
-git clone <repository-url>
+git clone https://github.com/GrozaMax/tnt-calendar.git
 cd tnt-calendar
-```
-
-2. **Создайте виртуальное окружение:**
-```bash
-python3 -m venv venv
-source venv/bin/activate  # На Windows: venv\Scripts\activate
-```
-
-3. **Установите зависимости:**
-```bash
+python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-```
-
-4. **Настройте переменные окружения:**
-```bash
 cp .env.example .env
+# Заполните TELEGRAM_BOT_TOKEN и ADMIN_TELEGRAM_IDS в .env
 ```
 
-Отредактируйте файл `.env` и добавьте ваш Telegram Bot Token:
-```env
-TELEGRAM_BOT_TOKEN=your_bot_token_here
-DATABASE_URL=sqlite+aiosqlite:///./crossfit_hub.db
-ADMIN_TELEGRAM_IDS=your_telegram_id
-LOG_LEVEL=INFO
-```
-
-### Запуск
+Запуск:
 
 ```bash
-python main.py
+python main.py       # бот
+python run_web.py    # веб-панель (http://localhost:8000)
 ```
 
-При первом запуске автоматически создастся база данных `crossfit_hub.db`.
+При первом запуске автоматически создаётся БД `crossfit_hub.db` с нужными таблицами.
 
-## 📋 Основные команды
+## Деплой (Docker)
 
-- `/start` - Начать работу с ботом и открыть главное меню
-- `/help` - Показать справку по использованию
+Два контейнера (бот + веб) из одного образа, общий volume для SQLite и загрузок.
 
-Все остальные функции доступны через интерактивное меню с кнопками.
+```bash
+git clone https://github.com/GrozaMax/tnt-calendar.git
+cd tnt-calendar
+bash setup.sh
+```
 
-## 🏗️ Структура проекта
+Скрипт `setup.sh` установит Docker, спросит токен бота и ваш Telegram ID, сгенерирует пароли, соберёт и запустит контейнеры.
+
+Обновление после мержа новых фич:
+
+```bash
+bash update.sh
+```
+
+Подробнее: [DEPLOY.md](DEPLOY.md).
+
+## Переменные окружения
+
+| Переменная | Описание |
+|---|---|
+| `TELEGRAM_BOT_TOKEN` | Токен от @BotFather |
+| `DATABASE_URL` | URL БД (SQLite или PostgreSQL) |
+| `ADMIN_TELEGRAM_IDS` | Telegram ID супер-админов через запятую |
+| `WEB_LOGIN_SECRET` | Общий пароль для входа в веб (fallback, если у пользователя нет индивидуального) |
+| `WEB_DEBUG` | `true` / `false` |
+| `UPLOADS_DIR` | Каталог загрузок (по умолчанию `uploads`) |
+| `LOG_LEVEL` | `DEBUG`, `INFO`, `WARNING`, `ERROR` |
+
+Полный список с комментариями: [.env.example](.env.example).
+
+## Структура проекта
 
 ```
 tnt-calendar/
 ├── src/
-│   ├── models/                 # ORM модели (User, Workout, Booking)
-│   ├── database/               # Подключение к БД и репозитории
-│   ├── services/               # Бизнес-логика
-│   ├── handlers/               # Обработчики команд и callback
-│   ├── keyboards/              # Inline-клавиатуры
-│   ├── locales/                # Переводы (RU, UA, EN, DE, GE)
-│   ├── utils/                  # Утилиты и валидаторы
-│   ├── bot.py                  # Главный класс бота
-│   └── config.py               # Конфигурация
-├── main.py                     # Точка входа
-├── requirements.txt            # Зависимости
-└── README.md                   # Документация
+│   ├── models/              # ORM: User, Workout, Booking, AppSetting, ScheduleTemplate
+│   ├── database/
+│   │   ├── connection.py    # engine, init_db, миграции SQLite
+│   │   └── repositories/    # User, Workout, Booking, Settings
+│   ├── services/            # BookingService, WorkoutService, NotificationService, ...
+│   ├── handlers/            # Команды и callback для бота
+│   ├── keyboards/           # Inline-клавиатуры
+│   ├── locales/             # Переводы (ru, ua, en, de, ge)
+│   ├── constants.py         # Дефолт/границы лимита записей
+│   ├── bot.py               # Главный класс бота
+│   └── config.py
+├── web/
+│   ├── main.py              # FastAPI app
+│   ├── config.py            # WEB_LOGIN_SECRET, WEB_DEBUG, ...
+│   ├── api/                 # auth, workouts, users, business_settings, schedule_*
+│   ├── templates/
+│   └── static/app.js
+├── tests/                   # pytest + pytest-asyncio (50 тестов)
+├── main.py                  # Точка входа бота
+├── run_web.py               # Запуск веб-панели
+├── setup.sh                 # Автоматический деплой на VPS
+├── update.sh                # Обновление версии
+├── Dockerfile
+├── docker-compose.yml
+└── DEPLOY.md
 ```
 
-## 🗄️ База данных
+## Авторизация в веб-панели
 
-Проект использует SQLAlchemy ORM с поддержкой асинхронности.
+Вход: Telegram ID (или username без `@`) + пароль.
 
-### Модели:
+- Если у пользователя задан **индивидуальный пароль** (вкладка «Пользователи» -> кнопка «Пароль»), проверяется он (SHA-256 + соль в БД).
+- Иначе проверяется общий `WEB_LOGIN_SECRET` из `.env`.
+- Доступ только для тренеров и админов.
 
-**User** (Пользователь):
-- `telegram_id` - Telegram ID пользователя
-- `role` - Роль (ATHLETE, TRAINER, ADMIN)
-- `language` - Предпочитаемый язык
+## Бизнес-правила
 
-**Workout** (Тренировка):
-- `name` - Название тренировки
-- `datetime` - Дата и время
-- `trainer_id` - ID тренера
-- `max_participants` - Максимум участников
+- **Лимит записей в день:** настраивается админом в веб-панели (по умолчанию 2).
+- **Запись:** только на будущие тренировки (не в прошлом), в пределах 7 дней.
+- **Места:** `max_participants` на каждой тренировке.
+- **Уникальность:** один пользователь — одна запись на тренировку.
+- **Уведомления:** учитывают флаг `notifications_enabled` на пользователе.
 
-**Booking** (Запись):
-- `user_id` - ID пользователя
-- `workout_id` - ID тренировки
-- `status` - Статус (ACTIVE, CANCELLED)
-
-### Миграции с Alembic (опционально)
+## Тесты
 
 ```bash
-# Инициализация
-alembic init migrations
-
-# Создание миграции
-alembic revision --autogenerate -m "Description"
-
-# Применение миграций
-alembic upgrade head
+pip install -r requirements.txt
+pytest tests/ -v
 ```
 
-## 📝 Бизнес-правила
+50 тестов: модели, репозитории, сервисы, API (httpx + AsyncClient).
 
-### Ограничения для записи:
-1. **Временные рамки**: Запись возможна только на Сегодня (после текущего времени) и Завтра
-2. **Лимит записей**: Максимум 2 записи на один календарный день
-3. **Лимит участников**: Настраивается для каждой тренировки (по умолчанию 999)
+## Технологии
 
-### Роли пользователей:
-- **ATHLETE** (Атлет): Базовые функции просмотра и записи
-- **TRAINER** (Тренер): + Управление своими классами
-- **ADMIN** (Админ): Полный доступ к системе
+- [python-telegram-bot](https://python-telegram-bot.org/) 21.5
+- [FastAPI](https://fastapi.tiangolo.com/) + Uvicorn
+- [SQLAlchemy](https://www.sqlalchemy.org/) 2.0 (async)
+- SQLite (dev) / PostgreSQL (production)
+- Docker + Docker Compose
 
-## 🌐 Мультиязычность
-
-Бот поддерживает 5 языков:
-- 🇷🇺 Русский (ru) - **реализован**
-- 🇺🇦 Украинский (ua) - в разработке
-- 🇬🇧 Английский (en) - в разработке
-- 🇩🇪 Немецкий (de) - в разработке
-- 🇬🇪 Грузинский (ge) - в разработке
-
-Переводы хранятся в `src/locales/*.json`.
-
-## 🛠️ Разработка
-
-### Добавление новых переводов
-
-1. Откройте `src/locales/ru.json`
-2. Добавьте новый ключ
-3. Создайте соответствующие файлы для других языков
-
-### Добавление новых обработчиков
-
-1. Создайте функцию в `src/handlers/`
-2. Зарегистрируйте её в `src/bot.py` в методе `_register_handlers()`
-
-### Логирование
-
-Уровень логирования настраивается в `.env`:
-```env
-LOG_LEVEL=DEBUG  # DEBUG, INFO, WARNING, ERROR
-```
-
-## 📊 Тестовые данные
-
-Для тестирования можно создать тестовые тренировки через Python:
-
-```python
-import asyncio
-from datetime import datetime, timedelta
-from src.database import get_session
-from src.database.repositories import UserRepository, WorkoutRepository
-from src.models import UserRole
-
-async def create_test_data():
-    async with get_session() as session:
-        user_repo = UserRepository(session)
-        workout_repo = WorkoutRepository(session)
-        
-        # Создать тренера
-        trainer, _ = await user_repo.get_or_create(
-            telegram_id=123456789,
-            first_name="Тренер",
-            last_name="Иванов"
-        )
-        trainer.role = UserRole.TRAINER
-        
-        # Создать тренировки
-        today = datetime.now().replace(hour=18, minute=0, second=0)
-        await workout_repo.create(
-            name="CrossFit WOD",
-            datetime=today,
-            trainer_id=trainer.id,
-            duration=60,
-            max_participants=12
-        )
-        
-        tomorrow = today + timedelta(days=1)
-        await workout_repo.create(
-            name="Olympic Lifting",
-            datetime=tomorrow,
-            trainer_id=trainer.id,
-            duration=90,
-            max_participants=8
-        )
-        
-        await session.commit()
-        print("✅ Тестовые данные созданы!")
-
-# Запуск
-asyncio.run(create_test_data())
-```
-
-## 🔐 Безопасность
-
-- ✅ Токен хранится в `.env` (не коммитится в git)
-- ✅ Валидация всех пользовательских вводов
-- ✅ Проверка прав доступа через декораторы
-- ✅ SQLAlchemy ORM защищает от SQL Injection
-
-## 📄 Лицензия
+## Лицензия
 
 MIT
-
-## 👨‍💻 Разработка
-
-Разработано с использованием:
-- [python-telegram-bot](https://python-telegram-bot.org/) v21.5
-- [SQLAlchemy](https://www.sqlalchemy.org/) v2.0+
-- [Alembic](https://alembic.sqlalchemy.org/)
-
-## 📞 Поддержка
-
-Для вопросов и предложений создавайте Issues в репозитории.
-
----
-
-**CrossFit Hub Bot** - Ваш персональный помощник в управлении тренировками! 💪

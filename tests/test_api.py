@@ -3,7 +3,12 @@
 """
 import pytest
 from datetime import datetime, timedelta
+from unittest.mock import patch
 from fastapi import status
+from httpx import ASGITransport, AsyncClient
+
+from tests.conftest import _make_session_patcher
+from web.main import app
 
 
 class TestWorkoutsAPI:
@@ -190,6 +195,75 @@ class TestUsersAPI:
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["role"] == "trainer"
+
+    async def test_set_trainer_web_password(self, api_client_admin, test_trainer, db_session):
+        """Индивидуальный пароль: PATCH и проверка хеша в модели."""
+        response = await api_client_admin.patch(
+            f"/api/users/{test_trainer.id}/password",
+            json={"password": "unique_web_pass_99"},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        await db_session.refresh(test_trainer)
+        assert test_trainer.check_web_password("unique_web_pass_99")
+
+    async def test_users_include_has_web_password(self, api_client_admin):
+        response = await api_client_admin.get("/api/users/")
+        assert response.status_code == status.HTTP_200_OK
+        for row in response.json():
+            assert "has_web_password" in row
+
+
+class TestAuthLogin:
+    """Вход в веб: общий секрет или индивидуальный пароль."""
+
+    pytestmark = pytest.mark.asyncio
+
+    async def test_login_with_shared_secret_fallback(self, db_session, test_trainer):
+        with _make_session_patcher(db_session):
+            with patch(
+                "web.api.auth.WebConfig.get_web_login_secret",
+                return_value="shared_fallback_secret",
+            ):
+                async with AsyncClient(
+                    transport=ASGITransport(app=app), base_url="http://test"
+                ) as client:
+                    r = await client.post(
+                        "/api/auth/login",
+                        json={
+                            "login": "test_trainer",
+                            "secret_code": "shared_fallback_secret",
+                        },
+                    )
+        assert r.status_code == status.HTTP_200_OK
+        assert "access_token" in r.json()
+
+    async def test_login_individual_password_rejects_shared(self, db_session, test_trainer):
+        test_trainer.set_web_password("only_individual_ok")
+        await db_session.commit()
+        with _make_session_patcher(db_session):
+            with patch(
+                "web.api.auth.WebConfig.get_web_login_secret",
+                return_value="shared_fallback_secret",
+            ):
+                async with AsyncClient(
+                    transport=ASGITransport(app=app), base_url="http://test"
+                ) as client:
+                    bad = await client.post(
+                        "/api/auth/login",
+                        json={
+                            "login": "test_trainer",
+                            "secret_code": "shared_fallback_secret",
+                        },
+                    )
+                    ok = await client.post(
+                        "/api/auth/login",
+                        json={
+                            "login": "test_trainer",
+                            "secret_code": "only_individual_ok",
+                        },
+                    )
+        assert bad.status_code == status.HTTP_401_UNAUTHORIZED
+        assert ok.status_code == status.HTTP_200_OK
 
 
 class TestPermissions:

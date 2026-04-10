@@ -1,26 +1,33 @@
+# Два контейнера (bot + web) с общим volume: SQLite и uploads доступны обоим.
+# Подходит для Oracle Cloud Compute (Docker Compose) и других VPS.
+
 services:
   bot:
     build: .
+    image: tnt-calendar:latest
     command: python main.py
     env_file: .env
     volumes:
-      - db_data:/app/db
+      - app_data:/app/data
     environment:
-      - DATABASE_URL=sqlite+aiosqlite:////app/db/crossfit_hub.db
+      DATABASE_URL: sqlite+aiosqlite:////app/data/crossfit_hub.db
+      UPLOADS_DIR: /app/data/uploads
     restart: unless-stopped
-    depends_on: []
 
   web:
-    build: .
+    image: tnt-calendar:latest
     command: python run_web.py
     env_file: .env
     ports:
       - "8000:8000"
     volumes:
-      - db_data:/app/db
+      - app_data:/app/data
     environment:
-      - DATABASE_URL=sqlite+aiosqlite:////app/db/crossfit_hub.db
+      DATABASE_URL: sqlite+aiosqlite:////app/data/crossfit_hub.db
+      UPLOADS_DIR: /app/data/uploads
     restart: unless-stopped
+    depends_on:
+      - bot
 
 volumes:
-  db_data:
+  app_data:

@@ -13,3 +13,9 @@ htmlcov/
 *.egg-info/
 dist/
 build/
+*.md
+TODO.txt
+plan.txt
+setup.sh
+update.sh
+.cursor/
