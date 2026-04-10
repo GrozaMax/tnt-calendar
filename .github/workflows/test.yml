@@ -2,9 +2,9 @@ name: Tests
 
 on:
   push:
-    branches: [ main, feature/* ]
+    branches: [ master, feature/* ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
 
 jobs:
   test:
@@ -16,7 +16,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -26,5 +26,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: test_token_for_ci
           DATABASE_URL: sqlite+aiosqlite:///./test.db
           ADMIN_TELEGRAM_IDS: '123456789'
+          WEB_LOGIN_SECRET: ci_test_secret
+          WEB_DEBUG: 'true'
           LOG_LEVEL: WARNING
-        run: make test
+        run: pytest tests/ -v

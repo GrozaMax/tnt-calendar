@@ -2,12 +2,35 @@ name: Deploy to VPS
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        env:
+          TELEGRAM_BOT_TOKEN: test_token_for_ci
+          DATABASE_URL: sqlite+aiosqlite:///./test.db
+          ADMIN_TELEGRAM_IDS: '123456789'
+          WEB_LOGIN_SECRET: ci_test_secret
+          WEB_DEBUG: 'true'
+          LOG_LEVEL: WARNING
+        run: pytest tests/ -v
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
@@ -17,7 +40,4 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd ~/tnt-calendar
-            git pull origin main
-            docker compose build --no-cache
-            docker compose up -d
-            echo "✅ Деплой завершён"
+            bash update.sh
