@@ -280,7 +280,11 @@ async def delete_workout(
             workout_id, status=BookingStatus.ACTIVE, load_relations=True
         )
         athlete_users = [
-            {'telegram_id': b.user.telegram_id, 'language': b.user.language or 'ru'}
+            {
+                'telegram_id': b.user.telegram_id,
+                'language': b.user.language or 'ru',
+                'notifications_enabled': b.user.notifications_enabled,
+            }
             for b in active_bookings if b.user and b.user.telegram_id
         ]
         workout_name = workout.name

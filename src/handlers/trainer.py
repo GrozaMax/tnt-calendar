@@ -192,6 +192,7 @@ async def remove_athlete_from_workout(update: Update, context: ContextTypes.DEFA
 
     athlete_telegram_id = None
     athlete_lang = 'ru'
+    athlete_notifications_enabled = True
     workout_name = ''
     workout_datetime_str = ''
 
@@ -203,6 +204,7 @@ async def remove_athlete_from_workout(update: Update, context: ContextTypes.DEFA
         if booking and booking.user:
             athlete_telegram_id = booking.user.telegram_id
             athlete_lang = booking.user.language or 'ru'
+            athlete_notifications_enabled = booking.user.notifications_enabled
         if booking and booking.workout:
             workout_name = booking.workout.name
             workout_datetime_str = booking.workout.datetime.strftime('%d.%m.%Y %H:%M')
@@ -223,7 +225,8 @@ async def remove_athlete_from_workout(update: Update, context: ContextTypes.DEFA
             athlete_telegram_id=athlete_telegram_id,
             workout_name=workout_name,
             workout_datetime=workout_datetime_str,
-            athlete_lang=athlete_lang
+            athlete_lang=athlete_lang,
+            notifications_enabled=athlete_notifications_enabled,
         )
 
     if success:

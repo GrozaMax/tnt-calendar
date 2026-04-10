@@ -29,9 +29,9 @@
     "success": "✅ Sie haben das Training erfolgreich gebucht!\n\n📋 {name}\n🕐 {datetime}\n👤 Trainer: {trainer}",
     "cancelled": "✅ Buchung storniert",
     "already_booked": "ℹ️ Sie sind bereits für dieses Training angemeldet",
-    "limit_reached": "❌ Sie sind bereits für 2 Trainings an diesem Tag angemeldet. Stornieren Sie eines, um ein neues zu buchen.",
+    "limit_reached": "❌ Sie haben bereits {max} Buchungen an diesem Tag (Studio-Limit). Stornieren Sie eine, um erneut zu buchen.",
     "no_slots": "❌ Keine verfügbaren Plätze für dieses Training",
-    "time_error": "❌ Buchung für dieses Training nicht verfügbar (nur für heute und morgen)",
+    "time_error": "❌ Buchung für dieses Training nicht verfügbar (Vergangenheit nicht buchbar)",
     "error": "❌ Buchungsfehler. Versuchen Sie es später erneut.",
     "not_found": "❌ Buchung nicht gefunden",
     "status_active": "✅ Aktiv",
@@ -53,10 +53,19 @@
     "upcoming": "Kommende Trainings:",
     "booking_info": "📋 {name}\n🕐 {datetime}\n👤 Trainer: {trainer}\n\nStatus: {status}"
   },
+  "settings": {
+    "intro": "⚙️ *Einstellungen*\n\nBot-Benachrichtigungen in Telegram: *{notif_state}*\n(Buchungen, Stornierungen, Studio-Nachrichten)\n\nWählen Sie eine Aktion:",
+    "notif_on": "ein",
+    "notif_off": "aus",
+    "btn_disable_notifications": "🔕 Benachrichtigungen aus",
+    "btn_enable_notifications": "🔔 Benachrichtigungen an",
+    "toggled_on": "✅ Benachrichtigungen eingeschaltet",
+    "toggled_off": "✅ Benachrichtigungen ausgeschaltet"
+  },
   "common": {
-    "welcome": "👋 Hallo, {name}!\n\nIch bin der CrossFit Hub Bot. Ich helfe Ihnen bei der Verwaltung Ihrer Trainingsbuchungen.\n\nWählen Sie eine Aktion aus dem Menü unten:",
+    "welcome": "👋 Hallo, {name}!\n\nIch bin der CrossFit Hub Bot — Buchungen und Zeitplan.\n\n📝 Bis zu *{max_per_day}* aktive Buchungen pro Kalendertag (Limit setzt der Admin).\n📅 Zeitplan: nächste 7 Tage; vergangene Sessions heute werden ausgeblendet.\n\nWählen Sie unten eine Aktion:",
     "help": "ℹ️ *CrossFit Hub Bot Hilfe*\n\nStarten: /start",
-    "help_athlete": "ℹ️ *Hilfe — CrossFit Hub*\n\n📅 *Zeitplan*\n• Tippen Sie «Training buchen» → Tag wählen\n• Buchung nur für heute und morgen möglich\n• Maximal 2 Buchungen pro Tag\n\n📋 *Meine Buchungen*\n• Aktive Buchungen anzeigen und stornieren\n\n📸 *Zeitplan-Bild*\n• Auf dem Tagesauswahlbildschirm gibt es eine Bildschaltfläche\n\n📝 *Einschränkungen*\n• Buchung nur für die nächsten 2 Tage\n• Nicht mehr als 2 Trainings pro Tag\n• Stornierung jederzeit möglich\n\nNeu starten: /start",
+    "help_athlete": "ℹ️ *Hilfe — CrossFit Hub*\n\n📅 *Buchung*\n• «Training buchen» → Tag innerhalb der nächsten 7 Tage\n• Heute werden vergangene Trainings nicht angezeigt\n• Vergangene Trainings sind nicht buchbar\n\n📋 *Meine Buchungen*\n• Aktive Buchungen anzeigen und stornieren\n\n⚙️ *Einstellungen*\n• Sprache\n• Bot-Benachrichtigungen ein/aus\n\n📸 *Zeitplan-Bild*\n• Auf der Tagesauswahl — Wochenbild (falls Admin hochgeladen hat)\n\n📝 *Limits*\n• Maximal *{max_per_day}* aktive Buchungen pro *Kalendertag* (Admin stellt im Web ein)\n• Pro Training gilt die jeweilige Kapazität\n\nNeu starten: /start",
     "help_trainer": "ℹ️ *Hilfe — CrossFit Hub (Trainer)*\n\n📅 *Zeitplanübersicht*\n• Trainings für die nächsten 7 Tage anzeigen\n• Eigenes Training antippen → «Teilnehmer verwalten»\n• Athleten vom Training entfernen\n\n🏋️ *Meine Trainings*\n• Nur Ihre zugewiesenen Trainings der Woche\n• Athlet entfernen: Taste «❌ Entfernen [Name]»\n\n📋 *Freie Slots*\n• Trainings ohne Trainer für 7 Tage\n• «Mich zuweisen» — fügt Sie dem Training hinzu\n\nNeu starten: /start",
     "help_admin": "ℹ️ *Hilfe — CrossFit Hub (Administrator)*\n\n👑 *Admin-Panel (Bot)*\n• Zeitplan anzeigen: heute / morgen / Woche\n• Trainer einem Training zuweisen\n• Training löschen (Athleten werden benachrichtigt)\n• Zeitplan-Bild hochladen (📸)\n\n🌐 *Weboberfläche*\n• Trainings erstellen und bearbeiten\n• Massenerstellung per Vorlage\n• Benutzer und Rollen verwalten\n\n🏋️ *Trainer-Panel (Bot)*\n• Zeitplanübersicht, eigene Trainings verwalten\n• Freie Slots selbst belegen\n\nNeu starten: /start",
     "error": "❌ Ein Fehler ist aufgetreten. Versuchen Sie es später erneut.",

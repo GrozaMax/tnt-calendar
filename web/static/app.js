@@ -86,12 +86,12 @@ async function apiRequest(endpoint, options = {}) {
 }
 
 // Авторизация
-async function login(telegramId, secretCode) {
+async function login(loginIdentifier, secretCode) {
     try {
         const data = await apiRequest('/auth/login', {
             method: 'POST',
             body: JSON.stringify({
-                telegram_id: parseInt(telegramId),
+                login: String(loginIdentifier).trim(),
                 secret_code: secretCode
             })
         });
@@ -605,6 +605,50 @@ function switchTab(tabName) {
         loadTemplate();
     } else if (tabName === 'scheduleImage') {
         loadScheduleImage();
+    } else if (tabName === 'gymSettings') {
+        loadGymSettings();
+    }
+}
+
+async function loadGymSettings() {
+    const el = document.getElementById('gymSettingsBody');
+    if (!el) return;
+    el.innerHTML = '<div class="loading">Загрузка...</div>';
+    try {
+        const s = await apiRequest('/settings');
+        el.innerHTML = `
+            <div class="form-group">
+                <label>Максимум записей атлета в один календарный день</label>
+                <input type="number" class="form-control" id="maxBookingsPerDay" min="1" max="20"
+                    value="${s.max_bookings_per_day}">
+                <p class="hint" style="margin-top:8px;font-size:0.9em;color:#666;">
+                    Действует для бота при записи атлетов. От 1 до 20.
+                </p>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="saveGymSettings()">Сохранить</button>
+        `;
+    } catch (e) {
+        el.innerHTML = `<div class="alert alert-error">Ошибка: ${e.message}</div>`;
+    }
+}
+
+async function saveGymSettings() {
+    const raw = document.getElementById('maxBookingsPerDay');
+    if (!raw) return;
+    const maxBookingsPerDay = parseInt(raw.value, 10);
+    if (Number.isNaN(maxBookingsPerDay) || maxBookingsPerDay < 1 || maxBookingsPerDay > 20) {
+        showError('Введите число от 1 до 20');
+        return;
+    }
+    try {
+        await apiRequest('/settings', {
+            method: 'PATCH',
+            body: JSON.stringify({ max_bookings_per_day: maxBookingsPerDay })
+        });
+        showSuccess('Настройки сохранены');
+        loadGymSettings();
+    } catch (e) {
+        showError(e.message);
     }
 }
 
@@ -1070,12 +1114,14 @@ function showLoginPage() {
                 <h1>🏋️ TNT Admin panel</h1>
                 <form id="loginForm">
                     <div class="form-group">
-                        <label>Telegram ID</label>
-                        <input type="number" class="form-control" id="telegramId" required>
+                        <label>Логин (Telegram ID или username)</label>
+                        <input type="text" class="form-control" id="loginIdentifier" required
+                            autocomplete="username" inputmode="text" placeholder="например 123456789 или coach_name">
                     </div>
                     <div class="form-group">
                         <label>Секретный код</label>
-                        <input type="password" class="form-control" id="secretCode" required value="secret123">
+                        <input type="password" class="form-control" id="secretCode" required
+                            autocomplete="current-password" placeholder="из переменной WEB_LOGIN_SECRET">
                     </div>
                     <button type="submit" class="btn btn-primary">Войти</button>
                 </form>
@@ -1085,10 +1131,10 @@ function showLoginPage() {
     
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const telegramId = document.getElementById('telegramId').value;
+        const loginIdentifier = document.getElementById('loginIdentifier').value;
         const secretCode = document.getElementById('secretCode').value;
         
-        const success = await login(telegramId, secretCode);
+        const success = await login(loginIdentifier, secretCode);
         if (success) {
             location.reload();
         }
@@ -1128,6 +1174,8 @@ window.seedTemplateFromFile = seedTemplateFromFile;
 window.seedTemplateFromFileForce = seedTemplateFromFileForce;
 window.uploadScheduleImage = uploadScheduleImage;
 window.deleteScheduleImage = deleteScheduleImage;
+window.loadGymSettings = loadGymSettings;
+window.saveGymSettings = saveGymSettings;
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
@@ -1166,6 +1214,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Вкладка "Картинка расписания"
         const scheduleImageTab = document.getElementById('scheduleImageTab');
         if (scheduleImageTab) scheduleImageTab.style.display = 'none';
+        const gymSettingsTab = document.getElementById('gymSettingsTab');
+        if (gymSettingsTab) gymSettingsTab.style.display = 'none';
     }
 
     // Обработчики форм

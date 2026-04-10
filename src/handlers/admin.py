@@ -350,7 +350,11 @@ async def handle_admin_delete_reason(update: Update, context: ContextTypes.DEFAU
             workout_id, status=BookingStatus.ACTIVE, load_relations=True
         )
         athlete_users = [
-            {'telegram_id': b.user.telegram_id, 'language': b.user.language or 'ru'}
+            {
+                'telegram_id': b.user.telegram_id,
+                'language': b.user.language or 'ru',
+                'notifications_enabled': b.user.notifications_enabled,
+            }
             for b in active_bookings if b.user and b.user.telegram_id
         ]
 
@@ -367,7 +371,8 @@ async def handle_admin_delete_reason(update: Update, context: ContextTypes.DEFAU
             workout_name=workout_name,
             workout_datetime=workout_dt,
             reason=reason,
-            athlete_lang=athlete['language']
+            athlete_lang=athlete['language'],
+            notifications_enabled=athlete['notifications_enabled'],
         )
 
     # Удаляем сообщение с причиной от администратора

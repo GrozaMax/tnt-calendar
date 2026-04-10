@@ -39,6 +39,29 @@ async_session_maker = async_sessionmaker(
 )
 
 
+async def _migrate_users_notifications_enabled() -> None:
+    """Добавляет users.notifications_enabled для существующих SQLite БД."""
+    if "sqlite" not in Config.DATABASE_URL:
+        return
+    import logging
+    from sqlalchemy import text
+
+    logger = logging.getLogger(__name__)
+    async with engine.connect() as conn:
+        result = await conn.execute(text("PRAGMA table_info(users)"))
+        cols = {row[1] for row in result.fetchall()}
+        if "notifications_enabled" in cols:
+            return
+    logger.info("Миграция: users.notifications_enabled")
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "ALTER TABLE users ADD COLUMN notifications_enabled "
+                "BOOLEAN NOT NULL DEFAULT 1"
+            )
+        )
+
+
 async def _migrate_workouts_trainer_nullable() -> None:
     """Делает workouts.trainer_id nullable для SQLite (только если БД создана со старой схемой)."""
     if "sqlite" not in Config.DATABASE_URL:
@@ -84,7 +107,14 @@ async def init_db() -> None:
     """
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    await _migrate_users_notifications_enabled()
     await _migrate_workouts_trainer_nullable()
+    async with async_session_maker() as session:
+        from src.database.repositories.settings_repository import SettingsRepository
+
+        repo = SettingsRepository(session)
+        await repo.ensure_default_max_bookings_per_day()
+        await session.commit()
 
 
 @asynccontextmanager

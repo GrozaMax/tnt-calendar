@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 from datetime import datetime, date, timedelta
+
+from src.constants import DEFAULT_MAX_BOOKINGS_PER_DAY
 from src.locales import get_text
 
 
@@ -29,12 +31,12 @@ def validate_booking_time(workout_datetime: datetime, lang: str = 'ru') -> tuple
 
 def can_book_workout(
     bookings_count: int,
-    max_bookings_per_day: int = 2,
+    max_bookings_per_day: int = DEFAULT_MAX_BOOKINGS_PER_DAY,
     lang: str = 'ru'
 ) -> tuple[bool, str]:
     """
     Проверка, может ли пользователь записаться на тренировку.
-    Максимум 2 записи в день.
+    Лимит записей в день задаётся в настройках (дефолт в constants).
     
     Returns:
         tuple[bool, str]: (можно записаться, сообщение об ошибке)

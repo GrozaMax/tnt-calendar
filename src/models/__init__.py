@@ -6,6 +6,7 @@ from src.models.user import User, UserRole
 from src.models.workout import Workout
 from src.models.booking import Booking, BookingStatus
 from src.models.schedule_template import ScheduleTemplate
+from src.models.app_setting import AppSetting
 
 __all__ = [
     'Base',
@@ -15,5 +16,6 @@ __all__ = [
     'Booking',
     'BookingStatus',
     'ScheduleTemplate',
+    'AppSetting',
 ]
 

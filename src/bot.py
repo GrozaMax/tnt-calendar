@@ -35,6 +35,7 @@ from src.handlers.athlete import (
     show_language_selection,
     set_language,
     show_schedule_image,
+    toggle_notifications,
 )
 from src.handlers.admin import (
     show_admin_menu,
@@ -187,6 +188,13 @@ class TelegramBot:
             CallbackQueryHandler(
                 self._wrap_with_user_check(set_language),
                 pattern='^set_lang:'
+            )
+        )
+
+        self.application.add_handler(
+            CallbackQueryHandler(
+                self._wrap_with_user_check(toggle_notifications),
+                pattern='^toggle_notifications$'
             )
         )
         

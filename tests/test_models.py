@@ -3,6 +3,8 @@
 """
 import pytest
 from datetime import datetime, timedelta
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from src.models import User, UserRole, Workout, Booking, BookingStatus
 
@@ -83,46 +85,80 @@ class TestWorkout:
         assert workout.trainer_id == test_trainer.id
     
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Требует eager loading relationships - работает в продакшне")
     async def test_workout_current_participants(self, test_workout, test_athlete, booking_repo, db_session):
-        """Тест подсчета текущих участников"""
-        # Изначально 0 участников
-        assert test_workout.current_participants == 0
-        
-        # Добавляем запись
+        """Подсчёт участников: hybrid property при загруженных bookings и async-запрос к БД."""
+        workout_id = test_workout.id
+
+        async def load_workout() -> Workout:
+            # После commit новая запись в БД: без populate_existing сессия может вернуть
+            # закэшированный Workout с пустым bookings (identity map).
+            res = await db_session.execute(
+                select(Workout)
+                .where(Workout.id == workout_id)
+                .options(selectinload(Workout.bookings))
+                .execution_options(populate_existing=True)
+            )
+            return res.scalar_one()
+
+        w = await load_workout()
+        assert w.current_participants == 0
+        assert await w.get_current_participants_async(db_session) == 0
+
         await booking_repo.create(
             user_id=test_athlete.id,
-            workout_id=test_workout.id
+            workout_id=workout_id,
         )
         await db_session.commit()
-        await db_session.refresh(test_workout)
-        
-        # Теперь должен быть 1 участник
-        assert test_workout.current_participants == 1
-    
+
+        w = await load_workout()
+        assert w.current_participants == 1
+        assert await w.get_current_participants_async(db_session) == 1
+
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Требует eager loading relationships - работает в продакшне")
-    async def test_workout_is_full(self, workout_repo, test_trainer, test_athlete, booking_repo, db_session):
-        """Тест проверки заполненности тренировки"""
-        # Создаем тренировку на 2 места
+    async def test_workout_is_full(
+        self, workout_repo, user_repo, test_trainer, booking_repo, db_session
+    ):
+        """Заполненность: is_full / has_free_slots при загруженных bookings + сверка с COUNT в БД."""
         workout = await workout_repo.create(
             name="Small Class",
             datetime=datetime.now() + timedelta(hours=2),
             max_participants=2,
-            trainer_id=test_trainer.id
+            trainer_id=test_trainer.id,
         )
         await db_session.commit()
-        await db_session.refresh(workout)
-        
-        assert workout.is_full is False
-        
-        # Добавляем 2 записи
-        athlete1 = await booking_repo.get_session().scalar(
-            booking_repo.get_session().execute(
-                "INSERT INTO users (telegram_id, first_name) VALUES (400001, 'Athlete1') RETURNING *"
+        workout_id = workout.id
+
+        a1 = await user_repo.create(telegram_id=400001, first_name="Athlete1")
+        a2 = await user_repo.create(telegram_id=400002, first_name="Athlete2")
+        await db_session.commit()
+
+        async def load_workout() -> Workout:
+            res = await db_session.execute(
+                select(Workout)
+                .where(Workout.id == workout_id)
+                .options(selectinload(Workout.bookings))
+                .execution_options(populate_existing=True)
             )
-        )
-        # ... (упрощенно, можно создать через репозиторий)
+            return res.scalar_one()
+
+        w = await load_workout()
+        assert w.is_full is False
+        assert w.has_free_slots is True
+
+        await booking_repo.create(user_id=a1.id, workout_id=workout_id)
+        await db_session.commit()
+        w = await load_workout()
+        assert w.is_full is False
+        assert w.has_free_slots is True
+        assert await w.get_current_participants_async(db_session) == 1
+
+        await booking_repo.create(user_id=a2.id, workout_id=workout_id)
+        await db_session.commit()
+        w = await load_workout()
+        assert w.current_participants == 2
+        assert await w.get_current_participants_async(db_session) == 2
+        assert w.is_full is True
+        assert w.has_free_slots is False
 
 
 class TestBooking:

@@ -3,15 +3,16 @@
 """
 import asyncio
 import pytest
+import pytest_asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from unittest.mock import patch
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.pool import StaticPool
-from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 
 from src.models.base import Base
-from src.models import User, UserRole, Workout, Booking, BookingStatus
+from src.models import User, UserRole, Workout, Booking, BookingStatus, AppSetting  # noqa: F401
 from src.database.repositories import UserRepository, WorkoutRepository, BookingRepository
 from src.database import get_session
 from web.api.auth import get_current_user
@@ -27,7 +28,10 @@ def event_loop():
     loop.close()
 
 
-@pytest.fixture
+pytest_plugins = ("pytest_asyncio",)
+
+
+@pytest_asyncio.fixture
 async def db_engine():
     """Создаем тестовую БД в памяти"""
     engine = create_async_engine(
@@ -45,7 +49,7 @@ async def db_engine():
     await engine.dispose()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def db_session(db_engine):
     """Создаем сессию БД для каждого теста"""
     async_session = async_sessionmaker(
@@ -59,26 +63,26 @@ async def db_session(db_engine):
         await session.rollback()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def user_repo(db_session):
     """Репозиторий пользователей"""
     return UserRepository(db_session)
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def workout_repo(db_session):
     """Репозиторий тренировок"""
     return WorkoutRepository(db_session)
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def booking_repo(db_session):
     """Репозиторий записей"""
     return BookingRepository(db_session)
 
 
 # Фикстуры с тестовыми данными
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_admin(user_repo, db_session):
     """Создаем тестового админа"""
     admin = await user_repo.create(
@@ -93,7 +97,7 @@ async def test_admin(user_repo, db_session):
     return admin
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_trainer(user_repo, db_session):
     """Создаем тестового тренера"""
     trainer = await user_repo.create(
@@ -108,7 +112,7 @@ async def test_trainer(user_repo, db_session):
     return trainer
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_athlete(user_repo, db_session):
     """Создаем тестового атлета"""
     athlete = await user_repo.create(
@@ -123,7 +127,7 @@ async def test_athlete(user_repo, db_session):
     return athlete
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_workout(workout_repo, test_trainer, db_session):
     """Создаем тестовую тренировку"""
     workout = await workout_repo.create(
@@ -139,7 +143,7 @@ async def test_workout(workout_repo, test_trainer, db_session):
     return workout
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_booking(booking_repo, test_workout, test_athlete, db_session):
     """Создаем тестовую запись"""
     booking = await booking_repo.create(
@@ -157,6 +161,7 @@ _API_MODULES = [
     'web.api.workouts',
     'web.api.users',
     'web.api.schedule_template',
+    'web.api.business_settings',
 ]
 
 
@@ -180,41 +185,43 @@ def _make_session_patcher(db_session):
     return _Patcher()
 
 
-@pytest.fixture
-def api_client_admin(db_session, test_admin):
-    """Тестовый API клиент с правами админа"""
+@pytest_asyncio.fixture
+async def api_client_admin(db_session, test_admin):
+    """Async HTTP-клиент к приложению с подменой пользователя-админа и сессии БД."""
+
     async def _user():
         return test_admin
 
     app.dependency_overrides[get_current_user] = _user
+    transport = ASGITransport(app=app)
     with _make_session_patcher(db_session):
-        client = TestClient(app)
-        yield client
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            yield client
     app.dependency_overrides.clear()
 
 
-@pytest.fixture
-def api_client_trainer(db_session, test_trainer):
-    """Тестовый API клиент с правами тренера"""
+@pytest_asyncio.fixture
+async def api_client_trainer(db_session, test_trainer):
     async def _user():
         return test_trainer
 
     app.dependency_overrides[get_current_user] = _user
+    transport = ASGITransport(app=app)
     with _make_session_patcher(db_session):
-        client = TestClient(app)
-        yield client
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            yield client
     app.dependency_overrides.clear()
 
 
-@pytest.fixture
-def api_client_athlete(db_session, test_athlete):
-    """Тестовый API клиент с правами атлета"""
+@pytest_asyncio.fixture
+async def api_client_athlete(db_session, test_athlete):
     async def _user():
         return test_athlete
 
     app.dependency_overrides[get_current_user] = _user
+    transport = ASGITransport(app=app)
     with _make_session_patcher(db_session):
-        client = TestClient(app)
-        yield client
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            yield client
     app.dependency_overrides.clear()
 

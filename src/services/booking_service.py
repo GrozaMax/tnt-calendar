@@ -7,6 +7,7 @@ from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.repositories import BookingRepository, WorkoutRepository
+from src.database.repositories.settings_repository import SettingsRepository
 from src.locales import get_text
 from src.models import BookingStatus
 from src.utils.validators import (
@@ -59,11 +60,15 @@ class BookingService:
                 await self.session.commit()
                 return True, get_text('booking.restored', lang), existing_booking
         
-        # Проверка дневного лимита (макс. 2 тренировки в день)
+        # Проверка дневного лимита (настраивается в вебе, см. app_settings)
+        settings_repo = SettingsRepository(self.session)
+        max_per_day = await settings_repo.get_max_bookings_per_day()
         day_bookings = await self.booking_repo.get_active_bookings_by_date(
             user_id, workout.datetime.date()
         )
-        can_book, limit_error = can_book_workout(len(day_bookings), lang=lang)
+        can_book, limit_error = can_book_workout(
+            len(day_bookings), max_bookings_per_day=max_per_day, lang=lang
+        )
         if not can_book:
             return False, limit_error, None
 

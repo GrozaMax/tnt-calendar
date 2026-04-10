@@ -262,9 +262,18 @@ def back_to_main_menu_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def settings_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
+def settings_keyboard(lang: str = 'ru', notifications_enabled: bool = True) -> InlineKeyboardMarkup:
     """Меню настроек"""
+    notif_btn = (
+        get_text('settings.btn_disable_notifications', lang)
+        if notifications_enabled
+        else get_text('settings.btn_enable_notifications', lang)
+    )
     keyboard = [
+        [InlineKeyboardButton(
+            notif_btn,
+            callback_data='toggle_notifications'
+        )],
         [InlineKeyboardButton(
             "🌐 Язык / Language",
             callback_data='change_language'

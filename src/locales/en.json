@@ -29,9 +29,9 @@
     "success": "✅ You have successfully booked the workout!\n\n📋 {name}\n🕐 {datetime}\n👤 Trainer: {trainer}",
     "cancelled": "✅ Booking cancelled",
     "already_booked": "ℹ️ You are already booked for this workout",
-    "limit_reached": "❌ You are already booked for 2 workouts today. Cancel one to book another.",
+    "limit_reached": "❌ You already have {max} bookings this day (gym limit). Cancel one to book again.",
     "no_slots": "❌ No available slots for this workout",
-    "time_error": "❌ Booking for this workout is unavailable (booking only for today and tomorrow)",
+    "time_error": "❌ Booking for this workout is unavailable (cannot book a past session)",
     "error": "❌ Booking error. Try again later.",
     "not_found": "❌ Booking not found",
     "status_active": "✅ Active",
@@ -53,10 +53,19 @@
     "upcoming": "Upcoming workouts:",
     "booking_info": "📋 {name}\n🕐 {datetime}\n👤 Trainer: {trainer}\n\nStatus: {status}"
   },
+  "settings": {
+    "intro": "⚙️ *Settings*\n\nBot notifications in Telegram: *{notif_state}*\n(bookings, cancellations, gym messages)\n\nChoose an action:",
+    "notif_on": "on",
+    "notif_off": "off",
+    "btn_disable_notifications": "🔕 Turn off notifications",
+    "btn_enable_notifications": "🔔 Turn on notifications",
+    "toggled_on": "✅ Notifications enabled",
+    "toggled_off": "✅ Notifications disabled"
+  },
   "common": {
-    "welcome": "👋 Hello, {name}!\n\nI'm the CrossFit Hub bot. I'll help you manage your workout bookings.\n\nChoose an action from the menu below:",
+    "welcome": "👋 Hello, {name}!\n\nI'm the CrossFit Hub bot — workouts and schedule.\n\n📝 Up to *{max_per_day}* active bookings per calendar day (set by your gym admin).\n📅 Schedule shows the next 7 days; today's past sessions are hidden.\n\nChoose an action below:",
     "help": "ℹ️ *CrossFit Hub Bot Help*\n\nUse /start to begin.",
-    "help_athlete": "ℹ️ *Help — CrossFit Hub*\n\n📅 *Schedule*\n• Tap «Sign Up for a Workout» → choose a day\n• Booking available for today and tomorrow only\n• Maximum 2 bookings per day\n\n📋 *My Bookings*\n• View and cancel active bookings\n\n📸 *Schedule Image*\n• On the day selection screen, tap the image button\n\n📝 *Restrictions*\n• Booking open for the next 2 days only\n• No more than 2 workouts per day\n• Cancel anytime\n\nRestart: /start",
+    "help_athlete": "ℹ️ *Help — CrossFit Hub*\n\n📅 *Booking*\n• «Sign Up for a Workout» → pick a day within the next 7 days\n• Today's list hides workouts that already started\n• You cannot book a workout in the past\n\n📋 *My Bookings*\n• View and cancel active bookings\n\n⚙️ *Settings*\n• Interface language\n• Turn bot notifications on/off\n\n📸 *Schedule image*\n• On the day picker — weekly image (if admin uploaded it)\n\n📝 *Limits*\n• At most *{max_per_day}* active bookings per *calendar day* (admin sets this in the web panel)\n• Each workout has its own capacity\n\nRestart: /start",
     "help_trainer": "ℹ️ *Help — CrossFit Hub (Trainer)*\n\n📅 *Schedule Overview*\n• Browse workouts for the next 7 days\n• Tap your workout → «Manage Participants»\n• Remove an athlete from your workout\n\n🏋️ *My Workouts*\n• Your assigned workouts for the week\n• Remove athlete: tap «❌ Remove [name]»\n\n📋 *Free Slots*\n• Unassigned workouts for the next 7 days\n• Tap «Assign Myself» to take a slot\n\nRestart: /start",
     "help_admin": "ℹ️ *Help — CrossFit Hub (Admin)*\n\n👑 *Admin Panel (bot)*\n• View schedule: today / tomorrow / week\n• Assign trainer to a workout\n• Delete workout (athletes get notified)\n• Upload schedule image (📸)\n\n🌐 *Web Interface*\n• Create and edit workouts\n• Bulk create from template\n• Manage users and roles\n• Edit schedule template\n\n🏋️ *Trainer Panel (bot)*\n• Schedule overview, manage your workouts\n• Self-assign to free slots\n\nRestart: /start",
     "error": "❌ An error occurred. Try again later.",

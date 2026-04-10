@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from web.api import workouts, users, auth, schedule_template, schedule_image
+from web.api import workouts, users, auth, schedule_template, schedule_image, business_settings
 from web.config import WebConfig
 from src.database.connection import init_db
 
@@ -43,6 +43,7 @@ app.include_router(workouts.router, prefix="/api/workouts", tags=["workouts"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(schedule_template.router, prefix="/api/schedule-template", tags=["schedule-template"])
 app.include_router(schedule_image.router, prefix="/api/schedule-image", tags=["schedule-image"])
+app.include_router(business_settings.router, prefix="/api/settings", tags=["settings"])
 
 # Статические файлы
 app.mount("/static", StaticFiles(directory="web/static"), name="static")

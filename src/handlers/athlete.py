@@ -8,6 +8,7 @@ from telegram.ext import ContextTypes
 
 from src.database import get_session
 from src.database.repositories import WorkoutRepository, BookingRepository, UserRepository
+from src.database.repositories.settings_repository import SettingsRepository
 from src.services.booking_service import BookingService
 from src.services.notification_service import notify_trainer_new_booking, notify_trainer_booking_cancelled
 from src.keyboards.athlete_keyboards import (
@@ -30,8 +31,16 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user: User = context.user_data.get('current_user')
     lang = user.language if user else 'ru'
-    
-    text = get_text('common.welcome', lang, name=user.first_name if user else "Атлет")
+
+    async with get_session() as session:
+        max_per_day = await SettingsRepository(session).get_max_bookings_per_day()
+
+    text = get_text(
+        'common.welcome',
+        lang,
+        name=user.first_name if user else "Атлет",
+        max_per_day=max_per_day,
+    )
     is_admin = user and user.is_admin()
     is_trainer = user and user.is_trainer() and not user.is_admin()
     keyboard = main_menu_keyboard(lang, is_admin=is_admin, is_trainer=is_trainer)
@@ -250,7 +259,8 @@ async def book_workout(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     athlete_name=user.full_name,
                     workout_name=workout.name,
                     workout_datetime=workout.datetime.strftime('%d.%m.%Y %H:%M'),
-                    trainer_lang=workout.trainer.language or 'ru'
+                    trainer_lang=workout.trainer.language or 'ru',
+                    notifications_enabled=workout.trainer.notifications_enabled,
                 )
                 # После уведомления сбрасываем nav у тренера — чтобы следующий запрос создал новое сообщение внизу
                 if sent:
@@ -326,7 +336,8 @@ async def cancel_booking_from_workout(update: Update, context: ContextTypes.DEFA
                     athlete_name=user.full_name,
                     workout_name=workout.name,
                     workout_datetime=workout.datetime.strftime('%d.%m.%Y %H:%M'),
-                    trainer_lang=workout.trainer.language or 'ru'
+                    trainer_lang=workout.trainer.language or 'ru',
+                    notifications_enabled=workout.trainer.notifications_enabled,
                 )
                 if sent:
                     trainer_ud = context.application.user_data.get(workout.trainer.telegram_id)
@@ -422,16 +433,18 @@ async def cancel_booking_from_list(update: Update, context: ContextTypes.DEFAULT
         if success:
             # Уведомляем тренера об отмене
             if booking and booking.workout and booking.workout.trainer and booking.workout.trainer.telegram_id:
+                tr = booking.workout.trainer
                 sent = await notify_trainer_booking_cancelled(
                     bot=context.bot,
-                    trainer_telegram_id=booking.workout.trainer.telegram_id,
+                    trainer_telegram_id=tr.telegram_id,
                     athlete_name=user.full_name,
                     workout_name=booking.workout.name,
                     workout_datetime=booking.workout.datetime.strftime('%d.%m.%Y %H:%M'),
-                    trainer_lang=booking.workout.trainer.language or 'ru'
+                    trainer_lang=tr.language or 'ru',
+                    notifications_enabled=tr.notifications_enabled,
                 )
                 if sent:
-                    trainer_ud = context.application.user_data.get(booking.workout.trainer.telegram_id)
+                    trainer_ud = context.application.user_data.get(tr.telegram_id)
                     if isinstance(trainer_ud, dict):
                         trainer_ud.pop('nav_message_id', None)
                         trainer_ud['current_screen'] = None
@@ -453,12 +466,15 @@ async def show_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user: User = context.user_data.get('current_user')
     lang = user.language if user else 'ru'
 
+    async with get_session() as session:
+        max_per_day = await SettingsRepository(session).get_max_bookings_per_day()
+
     if user and user.role == UserRole.ADMIN:
         text = get_text('common.help_admin', lang)
     elif user and user.role == UserRole.TRAINER:
         text = get_text('common.help_trainer', lang)
     else:
-        text = get_text('common.help_athlete', lang)
+        text = get_text('common.help_athlete', lang, max_per_day=max_per_day)
 
     keyboard = back_to_main_menu_keyboard(lang)
     
@@ -476,18 +492,54 @@ async def show_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-async def show_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def show_settings(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    skip_answer: bool = False,
+):
     """Показать меню настроек"""
     query = update.callback_query
-    await query.answer()
-    
+    if query and not skip_answer:
+        await query.answer()
+
     user: User = context.user_data.get('current_user')
     lang = user.language if user else 'ru'
-    
-    text = get_text('menu.settings', lang)
-    keyboard = settings_keyboard(lang)
-    
-    await query.edit_message_text(text, reply_markup=keyboard)
+
+    notif_state = (
+        get_text('settings.notif_on', lang)
+        if user.notifications_enabled
+        else get_text('settings.notif_off', lang)
+    )
+    text = get_text('settings.intro', lang, notif_state=notif_state)
+    keyboard = settings_keyboard(lang, notifications_enabled=user.notifications_enabled)
+
+    await query.edit_message_text(text, reply_markup=keyboard, parse_mode='Markdown')
+
+
+async def toggle_notifications(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Вкл/выкл уведомления от бота для текущего пользователя"""
+    query = update.callback_query
+
+    user: User = context.user_data.get('current_user')
+    lang = user.language if user else 'ru'
+
+    async with get_session() as session:
+        user_repo = UserRepository(session)
+        db_user = await user_repo.get_by_id(user.id)
+        if not db_user:
+            await query.answer(get_text('common.user_not_found', lang), show_alert=True)
+            return
+        db_user.notifications_enabled = not db_user.notifications_enabled
+        await session.commit()
+        user.notifications_enabled = db_user.notifications_enabled
+
+    msg = (
+        get_text('settings.toggled_on', lang)
+        if user.notifications_enabled
+        else get_text('settings.toggled_off', lang)
+    )
+    await query.answer(msg, show_alert=True)
+    await show_settings(update, context, skip_answer=True)
 
 
 async def show_language_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):

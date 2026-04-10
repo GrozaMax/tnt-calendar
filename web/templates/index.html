@@ -26,6 +26,7 @@
             <button class="tab" onclick="switchTab('schedule')" id="scheduleTab">⚙️ Управление расписанием</button>
             <button class="tab" onclick="switchTab('template')" id="templateTab">📋 Шаблон расписания</button>
             <button class="tab" onclick="switchTab('scheduleImage')" id="scheduleImageTab">📸 Картинка расписания</button>
+            <button class="tab" onclick="switchTab('gymSettings')" id="gymSettingsTab">⚙️ Настройки зала</button>
         </div>
 
         <!-- Вкладка: Сегодня -->
@@ -213,7 +214,6 @@
                 </div>
             </div>
         </div>
-    </div>
 
         <!-- Вкладка: Картинка расписания -->
         <div id="scheduleImage" class="tab-content">
@@ -236,6 +236,20 @@
                     </button>
                 </div>
                 <div id="scheduleImagePreview" style="margin-top:20px;"></div>
+            </div>
+        </div>
+
+        <div id="gymSettings" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2>⚙️ Настройки зала</h2>
+                </div>
+                <p style="color:#666;margin-bottom:16px;">
+                    Лимит дневных записей для атлетов в Telegram-боте. Остальные правила (расписание, места на занятии) не меняются.
+                </p>
+                <div id="gymSettingsBody">
+                    <div class="loading">Откройте вкладку снова, если данные не загрузились.</div>
+                </div>
             </div>
         </div>
     </div>

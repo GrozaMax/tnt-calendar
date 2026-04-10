@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import enum
 from typing import List, Optional, TYPE_CHECKING
-from sqlalchemy import String, Integer, Enum, BigInteger
+from sqlalchemy import String, Integer, Enum, BigInteger, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.base import Base, TimestampMixin
@@ -46,7 +46,12 @@ class User(Base, TimestampMixin):
         default='ru',
         nullable=False
     )
-    
+    notifications_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False,
+    )
+
     # Relationships
     workouts: Mapped[List["Workout"]] = relationship(
         "Workout",

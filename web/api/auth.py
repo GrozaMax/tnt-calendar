@@ -3,27 +3,37 @@
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from web.config import WebConfig
 from src.database import get_session
 from src.database.repositories import UserRepository
-from src.models import UserRole
-
 router = APIRouter()
 security = HTTPBearer()
 
 
 class LoginRequest(BaseModel):
-    """Запрос на авторизацию"""
-    telegram_id: int
-    secret_code: str
+    """Вход: Telegram ID (цифры) или username Telegram (без @)."""
+
+    login: str = Field(..., min_length=1, max_length=255)
+    secret_code: str = Field(..., min_length=1)
 
 
 class LoginResponse(BaseModel):
     """Ответ на авторизацию"""
     access_token: str
     user: dict
+
+
+async def _resolve_user_by_login(user_repo: UserRepository, login: str):
+    raw = (login or "").strip()
+    if raw.startswith("@"):
+        raw = raw[1:].strip()
+    if not raw:
+        return None
+    if raw.isdigit():
+        return await user_repo.get_by_telegram_id(int(raw))
+    return await user_repo.get_by_username(raw)
 
 
 async def get_current_user(
@@ -79,12 +89,12 @@ async def login(request: LoginRequest):
     """
     Авторизация пользователя
     
-    Для входа нужен telegram_id и секретный код.
-    Возвращает access_token для использования в API.
+    Логин: числовой Telegram ID или username (как в Telegram, без @).
+    Секрет задаётся в окружении WEB_LOGIN_SECRET.
     """
     async with get_session() as session:
         user_repo = UserRepository(session)
-        user = await user_repo.get_by_telegram_id(request.telegram_id)
+        user = await _resolve_user_by_login(user_repo, request.login)
         
         if not user:
             raise HTTPException(
@@ -99,9 +109,7 @@ async def login(request: LoginRequest):
                 detail="Only trainers and admins can access web interface"
             )
         
-        # Проверяем секретный код (пока просто "secret123")
-        # В продакшене здесь должна быть проверка пароля
-        if request.secret_code != "secret123":
+        if request.secret_code != WebConfig.get_web_login_secret():
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid secret code"
@@ -134,4 +142,3 @@ async def get_me(user = Depends(get_current_user)):
         "role": user.role.value,
         "language": user.language
     }
-

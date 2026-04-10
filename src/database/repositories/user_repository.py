@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from typing import Optional, Dict, Any
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models import User, UserRole
@@ -24,6 +24,21 @@ class UserRepository:
         """Получить пользователя по Telegram ID"""
         result = await self.session.execute(
             select(User).where(User.telegram_id == telegram_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_username(self, username: str) -> Optional[User]:
+        """Получить пользователя по Telegram username (без @, без учёта регистра)"""
+        if not username or not username.strip():
+            return None
+        uname = username.strip().lstrip("@")
+        if not uname:
+            return None
+        result = await self.session.execute(
+            select(User).where(
+                User.username.isnot(None),
+                func.lower(User.username) == uname.lower(),
+            )
         )
         return result.scalar_one_or_none()
     
