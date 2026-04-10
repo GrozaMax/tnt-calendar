@@ -7,131 +7,80 @@
 ### Архитектурная диаграмма
 
 ```
-┌─────────────────────────────────────────┐
-│         Telegram Bot API                │
-└──────────────┬──────────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────────┐
-│      Application Layer                  │
-│  - Routing commands/callbacks           │
-│  - Authentication & Authorization       │
-│  - Localization                         │
-└──────────────┬──────────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────────┐
-│         Handlers Layer                  │
-│  - Athlete handlers                     │
-│  - Trainer handlers                     │
-│  - Admin handlers                       │
-│  - Inline keyboard callbacks            │
-└──────────────┬──────────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────────┐
-│      Business Logic Layer (Services)    │
-│  - BookingService                       │
-│  - WorkoutService                       │
-│  - UserService                          │
-│  - Validation & Business rules          │
-└──────────────┬──────────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────────┐
-│   Data Access Layer (Repositories)      │
-│  - UserRepository                       │
-│  - WorkoutRepository                    │
-│  - BookingRepository                    │
-└──────────────┬──────────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────────┐
-│         Data Models (ORM)               │
-│  - User (id, telegram_id, role, lang)   │
-│  - Workout (id, datetime, trainer_id)   │
-│  - Booking (id, user_id, workout_id)    │
-└──────────────┬──────────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────────┐
-│         Database (SQLite/PostgreSQL)    │
-└─────────────────────────────────────────┘
+┌──────────────────────┐     ┌──────────────────────────────┐
+│   Telegram Bot API   │     │   Браузер / HTTP клиент      │
+└──────────┬───────────┘     └──────────────┬───────────────┘
+           │                                │
+           ▼                                ▼
+┌──────────────────────┐     ┌──────────────────────────────┐
+│  python-telegram-bot │     │  FastAPI (web/main.py)       │
+│  Handlers + keyboards│     │  Jinja2 + static (SPA-lite)  │
+│  Middleware (auth,   │     │  /api/* — тренировки, юзеры, │
+│  locale)             │     │  настройки зала, auth        │
+└──────────┬───────────┘     └──────────────┬───────────────┘
+           │                                │
+           └────────────────┬───────────────┘
+                            ▼
+           ┌────────────────────────────────────────┐
+           │  Business Logic (Services)             │
+           │  BookingService, WorkoutService,       │
+           │  UserService, NotificationService, …   │
+           └────────────────┬───────────────────────┘
+                            ▼
+           ┌────────────────────────────────────────┐
+           │  Repositories                          │
+           │  User, Workout, Booking, Settings,   │
+           │  ScheduleTemplate, …                   │
+           └────────────────┬───────────────────────┘
+                            ▼
+           ┌────────────────────────────────────────┐
+           │  SQLAlchemy models → SQLite / PG       │
+           └────────────────────────────────────────┘
 ```
 
 ## Структура исходного кода
 
 ```
 /Users/maximgroza/PycharmProjects/tnt-calendar/
+├── main.py                             # Точка входа бота
+├── run_web.py                          # Запуск Uvicorn для веба
 ├── src/
-│   ├── __init__.py
-│   ├── bot.py                          # Главный класс бота
-│   ├── config.py                       # Конфигурация
-│   │
-│   ├── models/                         # ORM модели (SQLAlchemy)
-│   │   ├── __init__.py
-│   │   ├── base.py                     # Base model
-│   │   ├── user.py                     # User model
-│   │   ├── workout.py                  # Workout model
-│   │   └── booking.py                  # Booking model
-│   │
-│   ├── database/                       # Работа с БД
-│   │   ├── __init__.py
-│   │   ├── connection.py               # Database connection
-│   │   ├── session.py                  # Session management
-│   │   └── repositories/               # Repository pattern
-│   │       ├── __init__.py
-│   │       ├── user_repository.py
+│   ├── bot.py
+│   ├── config.py
+│   ├── constants.py                    # Дефолт/границы лимита записей в день
+│   ├── models/
+│   │   ├── user.py, workout.py, booking.py
+│   │   ├── app_setting.py              # Ключ–значение (max_bookings_per_day)
+│   │   └── schedule_template.py
+│   ├── database/
+│   │   ├── connection.py               # engine, init_db, точечные ALTER SQLite
+│   │   ├── session.py
+│   │   └── repositories/
+│   │       ├── user_repository.py      # в т.ч. get_by_username
 │   │       ├── workout_repository.py
-│   │       └── booking_repository.py
-│   │
-│   ├── services/                       # Бизнес-логика
-│   │   ├── __init__.py
-│   │   ├── user_service.py             # User management
-│   │   ├── workout_service.py          # Workout management
-│   │   └── booking_service.py          # Booking logic + validation
-│   │
-│   ├── handlers/                       # Обработчики команд
-│   │   ├── __init__.py
-│   │   ├── base.py                     # Общие команды (/start, /help)
-│   │   ├── athlete.py                  # Обработчики для атлета
-│   │   ├── trainer.py                  # Обработчики для тренера
-│   │   └── admin.py                    # Обработчики для админа
-│   │
-│   ├── keyboards/                      # Inline клавиатуры
-│   │   ├── __init__.py
-│   │   ├── athlete_keyboards.py        # Клавиатуры для атлета
-│   │   ├── trainer_keyboards.py        # Клавиатуры для тренера
-│   │   └── admin_keyboards.py          # Клавиатуры для админа
-│   │
-│   ├── middleware/                     # Middleware
-│   │   ├── __init__.py
-│   │   ├── auth.py                     # Проверка прав доступа
-│   │   └── locale.py                   # Мультиязычность
-│   │
-│   ├── locales/                        # Переводы
-│   │   ├── __init__.py
-│   │   ├── locale_manager.py           # Менеджер переводов
-│   │   ├── ru.json                     # Русский
-│   │   ├── ua.json                     # Украинский
-│   │   ├── en.json                     # Английский
-│   │   ├── de.json                     # Немецкий
-│   │   └── ge.json                     # Грузинский
-│   │
-│   └── utils/                          # Утилиты
-│       ├── __init__.py
-│       ├── decorators.py               # Декораторы (role_required)
-│       └── validators.py               # Валидаторы
-│
-├── migrations/                         # Alembic миграции
-│   └── versions/
-│
-├── main.py                            # Точка входа
-├── requirements.txt                   # Зависимости
-├── alembic.ini                        # Конфигурация миграций
-├── .env.example
-├── .gitignore
-└── README.md
+│   │       ├── booking_repository.py
+│   │       └── settings_repository.py
+│   ├── services/
+│   │   ├── booking_service.py          # лимит дня через SettingsRepository
+│   │   ├── workout_service.py, user_service.py
+│   │   └── notification_service.py
+│   ├── handlers/, keyboards/, middleware/
+│   ├── locales/                        # ru, en, ua, de, ge
+│   └── utils/validators.py
+├── web/
+│   ├── main.py                         # FastAPI app, роуты /api/*
+│   ├── config.py                       # WEB_LOGIN_SECRET, WEB_DEBUG, …
+│   ├── api/                            # auth, workouts, users, business_settings, …
+│   ├── templates/index.html
+│   ├── static/app.js
+│   └── utils/notifications.py
+├── migrations/                         # Alembic (при необходимости)
+├── tests/
+│   ├── conftest.py                     # AsyncClient + ASGITransport, pytest_asyncio
+│   ├── test_api.py, test_models.py, test_repositories.py, test_services.py
+├── requirements.txt
+├── alembic.ini
+└── .env.example
 ```
 
 ## Модели данных
@@ -146,6 +95,7 @@ class User:
     last_name: str (nullable)
     role: Enum(ATHLETE, TRAINER, ADMIN)
     language: str (default='ru')
+    notifications_enabled: bool  # исходящие уведомления в Telegram
     created_at: datetime
     updated_at: datetime
 ```
@@ -159,13 +109,17 @@ class Workout:
     datetime: datetime           # Дата и время
     duration: int                # Длительность в минутах
     max_participants: int        # Макс. участников (default=999)
-    trainer_id: int (FK -> User)
+    trainer_id: int (nullable FK -> User)
     created_at: datetime
     updated_at: datetime
     
     # Relationships
     trainer: User
     bookings: List[Booking]
+    
+    # Hybrid: current_participants — учитывает загрузку relationship bookings
+    # (inspect.unloaded); для точного числа в async-сервисе —
+    # get_current_participants_async(session)
 ```
 
 ### Booking (Запись)
@@ -183,6 +137,14 @@ class Booking:
     workout: Workout
     
     # Unique constraint: (user_id, workout_id)
+```
+
+### AppSetting (настройки зала)
+```python
+class AppSetting:
+    id: int (PK)
+    key: str (unique)            # например "max_bookings_per_day"
+    value: str                   # строковое значение (парсинг в сервисе)
 ```
 
 ## Ключевые технические решения
@@ -297,18 +259,15 @@ Database connection pool, LocaleManager.
 ### 1. Запись на тренировку (Атлет)
 
 ```
-1. User нажимает "📅 Расписание" → athlete_keyboards.main_menu()
-2. User выбирает "Сегодня" → handler: show_schedule(date='today')
-3. WorkoutService.get_workouts_by_date() → запрос к БД
-4. Формирование списка с кнопками "Записаться"
-5. User нажимает "Записаться" → callback: "book:workout_123"
-6. handler: book_workout() → BookingService.create_booking()
-7. Валидация:
-   - Проверка лимита записей в день (max 2)
-   - Проверка времени (только сегодня/завтра)
-   - Проверка свободных мест
-8. Если OK: создание Booking в БД
-9. Ответ пользователю: "✅ Вы записаны!"
+1. Выбор дня в пределах 7 дней от сегодня (прошедшие слоты «сегодня» скрыты)
+2. WorkoutRepository / сервис — список тренировок на дату
+3. Callback «Записаться» → BookingService.create_booking()
+4. Валидация:
+   - Лимит активных записей на календарный день (значение из app_settings,
+     дефолт/диапазон в constants.py)
+   - Время тренировки не в прошлом (validators)
+   - Свободные места (get_current_participants_async + max_participants)
+5. Создание Booking, при необходимости уведомления (с учётом notifications_enabled)
 ```
 
 ### 2. Бронирование слота (Тренер)
@@ -323,27 +282,22 @@ Database connection pool, LocaleManager.
 7. Подтверждение: "✅ Слот забронирован"
 ```
 
-### 3. Управление расписанием (Админ)
+### 3. Управление расписанием и пользователями (Админ)
 
-```
-1. Admin выбирает "⚙️ Управление расписанием"
-2. Выбор действия (Создать/Редактировать/Удалить)
-3. WorkoutService методы (CRUD)
-4. Изменение БД
-5. Подтверждение операции
-```
+**В боте:** сценарии админ-хендлеров (роли, просмотр и т.д.).
+
+**В веб-панели:** CRUD тренировок, пользователей, шаблон расписания, картинка расписания, вкладка «Настройки зала» (`GET/PATCH /api/settings`) — в т.ч. `max_bookings_per_day`.
 
 ## Бизнес-правила (Business Rules)
 
 ### Правила записи:
 
 1. **Лимит записей в день**: 
-   - Атлет может записаться максимум на 2 тренировки в один календарный день
-   - Проверка: `BookingService.check_daily_limit(user_id, date)`
+   - Число **активных** записей атлета на **календарный день** ограничено настройкой `max_bookings_per_day` в `app_settings` (дефолт и min/max в `src/constants.py`); читает `BookingService` через `SettingsRepository`.
 
 2. **Временные ограничения**:
-   - Запись только на Сегодня (после текущего времени) и Завтра
-   - Проверка: `BookingService.validate_booking_time(workout_datetime)`
+   - Нельзя записаться на тренировку в прошлом; выбор дня в UI — до 7 дней вперёд.
+   - Проверка времени: валидаторы / `BookingService`.
 
 3. **Лимит участников**:
    - Максимум участников на тренировке (default=999)
@@ -378,13 +332,16 @@ Bot → Handlers → Services → Repositories → Models → Database
     Keyboards   Validators
          ↓
    LocaleManager
+
+FastAPI (web) → api routers → Services / Repositories → Models → Database
 ```
 
 **Зависимости:**
 - Handlers зависят от Services и Keyboards
+- Веб-роутеры зависят от тех же сервисов и репозиториев (отдельные сессии БД в рамках запроса)
 - Services зависят от Repositories и Validators
 - Repositories зависят от Models
-- Все компоненты могут использовать LocaleManager
+- LocaleManager — преимущественно бот; веб — шаблоны и статический JS
 
 ## Масштабируемость
 
@@ -400,11 +357,12 @@ Bot → Handlers → Services → Repositories → Models → Database
 
 ## Безопасность
 
-1. **Аутентификация**: Через Telegram ID (встроенная)
-2. **Авторизация**: Проверка ролей через декораторы
-3. **Валидация входных данных**: На уровне Services
-4. **SQL Injection**: Защита через SQLAlchemy ORM
-5. **Rate Limiting**: Ограничение частоты запросов (будущая функция)
+1. **Бот**: идентификация по Telegram ID; авторизация ролей через middleware/декораторы.
+2. **Веб**: вход `POST /api/auth/login` — логин (Telegram ID или username) + секрет **`WEB_LOGIN_SECRET`** из окружения (не хранить в клиентском JS); при `WEB_DEBUG` без секрета — только для разработки.
+3. **Валидация входных данных**: Services / Pydantic в API.
+4. **SQL Injection**: SQLAlchemy ORM.
+5. **Секреты**: не коммитить `.env`; `.env.example` — плейсхолдеры.
+6. **Rate Limiting**: по желанию на production.
 
 ## Производительность
 
@@ -437,18 +395,16 @@ Bot → Handlers → Services → Repositories → Models → Database
 
 ### Уровни тестирования:
 
-1. **Unit Tests**: Services, Validators
-2. **Integration Tests**: Repositories
-3. **End-to-End Tests**: Handlers (pytest-telegram-bot)
+1. **Unit / integration**: сервисы, репозитории, модели
+2. **API**: FastAPI через `httpx` + `ASGITransport`
 
-### Структура тестов:
+### Структура тестов (фактическая):
 ```
 tests/
-├── unit/
-│   ├── test_booking_service.py
-│   └── test_validators.py
-├── integration/
-│   └── test_repositories.py
-└── e2e/
-    └── test_athlete_flow.py
+├── conftest.py           # async fixtures, httpx.AsyncClient + ASGITransport
+├── test_api.py           # FastAPI (в т.ч. /api/settings)
+├── test_models.py
+├── test_repositories.py
+└── test_services.py
 ```
+Запуск: `pytest tests/` (плагин `pytest-asyncio` подключён в `conftest.py`).

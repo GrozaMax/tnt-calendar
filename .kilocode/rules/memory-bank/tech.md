@@ -69,14 +69,29 @@ alembic upgrade head
 
 ## Структура зависимостей
 
+Актуальный список — в корневом `requirements.txt`. Кратко:
+
 ```
-requirements.txt:
-├── python-telegram-bot==21.5       # Telegram Bot API
-├── sqlalchemy[asyncio]==2.0.23     # ORM с async поддержкой
-├── alembic==1.13.0                 # Миграции БД
-├── aiosqlite==0.19.0               # Async драйвер для SQLite
-├── python-dotenv==1.0.1            # Конфигурация
-└── aiohttp==3.10.5                 # HTTP клиент
+python-telegram-bot==21.5
+sqlalchemy[asyncio]==2.0.36
+alembic==1.13.0
+aiosqlite==0.19.0
+asyncpg==0.29.0
+python-dotenv==1.0.1
+aiohttp==3.10.5
+python-multipart==0.0.9
+
+# Web
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+pydantic==2.9.0
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.23.8
+pytest-cov==4.1.0
+httpx==0.27.0
+faker==20.1.0
 ```
 
 ## Настройка окружения разработки
@@ -98,21 +113,17 @@ pip install -r requirements.txt
 
 ### 3. Настройка переменных окружения
 
-Создать файл `.env`:
+Создать файл `.env` (ориентир — `.env.example` в репозитории):
 ```env
-# Telegram
 TELEGRAM_BOT_TOKEN=your_bot_token_here
-
-# Database
 DATABASE_URL=sqlite+aiosqlite:///./crossfit_hub.db
-# Для PostgreSQL:
-# DATABASE_URL=postgresql+asyncpg://user:password@localhost/crossfit_hub
-
-# Admin
 ADMIN_TELEGRAM_IDS=123456789,987654321
-
-# Logging
 LOG_LEVEL=INFO
+
+# Веб-панель
+WEB_LOGIN_SECRET=your_long_random_secret
+WEB_DEBUG=true
+# WEB_HOST, WEB_PORT / PORT, WEB_SECRET_KEY, WEB_ADMIN_TOKENS — см. web/config.py
 ```
 
 ### 4. Инициализация базы данных
@@ -138,18 +149,24 @@ alembic upgrade head
 | `DATABASE_URL` | ✅ | URL подключения к БД | `sqlite+aiosqlite:///./db.sqlite` |
 | `ADMIN_TELEGRAM_IDS` | ❌ | ID супер-админов (через запятую) | `123456789,987654321` |
 | `LOG_LEVEL` | ❌ | Уровень логирования | `DEBUG`, `INFO`, `WARNING`, `ERROR` |
+| `WEB_LOGIN_SECRET` | ✅ в prod | Секрет для входа в веб (логин + код) | длинная случайная строка |
+| `WEB_DEBUG` | ❌ | `true`/`false`; при `false` без `WEB_LOGIN_SECRET` приложение не стартует безопасно | `true` локально |
+| `WEB_HOST`, `WEB_PORT` / `PORT` | ❌ | Хост и порт Uvicorn | `0.0.0.0`, `8000` |
+| `WEB_SECRET_KEY`, `WEB_ADMIN_TOKENS` | ❌ | Доп. настройки веба | см. `web/config.py` |
 
 ### Структура базы данных
 
-**SQLite для разработки**:
+**SQLite для разработки** (имя файла задаётся `DATABASE_URL`):
 ```
-crossfit_hub.db
-├── users         # Пользователи
-├── workouts      # Тренировки
-└── bookings      # Записи
+*.db
+├── users              # в т.ч. notifications_enabled
+├── workouts           # trainer_id может быть NULL
+├── bookings
+├── app_settings       # ключ–значение (max_bookings_per_day)
+└── …                  # schedule_templates и др. по мере эволюции схемы
 ```
 
-**Схема**:
+**Упрощённая схема** (детали — модели SQLAlchemy и `connection.py`):
 ```sql
 CREATE TABLE users (
     id INTEGER PRIMARY KEY,
@@ -159,6 +176,7 @@ CREATE TABLE users (
     last_name VARCHAR(255),
     role VARCHAR(50) NOT NULL,  -- ATHLETE, TRAINER, ADMIN
     language VARCHAR(5) DEFAULT 'ru',
+    notifications_enabled BOOLEAN DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -170,7 +188,7 @@ CREATE TABLE workouts (
     datetime TIMESTAMP NOT NULL,
     duration INTEGER DEFAULT 60,
     max_participants INTEGER DEFAULT 999,
-    trainer_id INTEGER REFERENCES users(id),
+    trainer_id INTEGER REFERENCES users(id),  -- nullable в актуальной схеме
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -183,6 +201,13 @@ CREATE TABLE bookings (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, workout_id)
+);
+
+CREATE TABLE app_settings (
+    id INTEGER PRIMARY KEY,
+    key VARCHAR(255) UNIQUE NOT NULL,
+    value TEXT NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Индексы
@@ -259,6 +284,9 @@ pytest tests/
 ```bash
 # Запуск бота
 python main.py
+
+# Запуск веб-панели (FastAPI)
+python run_web.py
 
 # Создание миграции
 alembic revision --autogenerate -m "Description"
@@ -444,11 +472,11 @@ engine = create_async_engine(
 
 ```
 tests/
-├── conftest.py              # Fixtures
-├── test_models.py           # Модели
-├── test_repositories.py     # Репозитории
-├── test_services.py         # Сервисы
-└── test_handlers.py         # Обработчики
+├── conftest.py              # pytest_asyncio, AsyncClient + ASGITransport
+├── test_api.py              # FastAPI (в т.ч. /api/settings)
+├── test_models.py
+├── test_repositories.py
+└── test_services.py
 ```
 
 ### Пример теста
@@ -469,6 +497,8 @@ async def test_create_booking_success(db_session, sample_user, sample_workout):
     assert booking.user_id == sample_user.id
     assert booking.status == "ACTIVE"
 ```
+
+Для HTTP API используется `httpx.AsyncClient` с `ASGITransport(app=...)` (см. `tests/conftest.py`).
 
 ## Миграция на Production
 
