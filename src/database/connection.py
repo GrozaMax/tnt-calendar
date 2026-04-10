@@ -23,20 +23,12 @@ engine: AsyncEngine = create_async_engine(
     future=True,
 )
 
-# Включаем foreign keys для SQLite
-@event.listens_for(engine.sync_engine, "connect")
-def set_sqlite_pragma(dbapi_conn, connection_record):
-    """Включаем foreign keys для SQLite при каждом подключении"""
-    import logging
-    logger = logging.getLogger(__name__)
-    
-    if "sqlite" in Config.DATABASE_URL:
+# Включаем foreign keys для SQLite (пропускаем для PostgreSQL)
+if "sqlite" in Config.DATABASE_URL:
+    @event.listens_for(engine.sync_engine, "connect")
+    def set_sqlite_pragma(dbapi_conn, connection_record):
         cursor = dbapi_conn.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
-        # Проверяем, что включилось
-        cursor.execute("PRAGMA foreign_keys")
-        result = cursor.fetchone()
-        logger.info(f"SQLite PRAGMA foreign_keys установлен: {result[0] if result else 'неизвестно'}")
         cursor.close()
 
 # Session maker
@@ -47,6 +39,44 @@ async_session_maker = async_sessionmaker(
 )
 
 
+async def _migrate_workouts_trainer_nullable() -> None:
+    """Делает workouts.trainer_id nullable для SQLite (только если БД создана со старой схемой)."""
+    if "sqlite" not in Config.DATABASE_URL:
+        return  # PostgreSQL — DDL через create_all, миграция не нужна
+    import logging
+    from sqlalchemy import text
+    logger = logging.getLogger(__name__)
+
+    async with engine.connect() as conn:
+        result = await conn.execute(text("PRAGMA table_info(workouts)"))
+        cols = {row[1]: row for row in result.fetchall()}
+        if "trainer_id" not in cols or cols["trainer_id"][3] == 0:
+            return  # уже nullable — миграция не нужна
+
+    logger.info("Запуск миграции: workouts.trainer_id → nullable")
+    async with engine.begin() as conn:
+        await conn.execute(text("""
+            CREATE TABLE workouts_migration_temp (
+                id         INTEGER  NOT NULL PRIMARY KEY,
+                name       VARCHAR(255) NOT NULL,
+                description TEXT,
+                datetime   DATETIME NOT NULL,
+                duration   INTEGER  NOT NULL,
+                max_participants INTEGER NOT NULL,
+                trainer_id INTEGER  REFERENCES users(id),
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL
+            )
+        """))
+        await conn.execute(text("INSERT INTO workouts_migration_temp SELECT * FROM workouts"))
+        await conn.execute(text("DROP TABLE workouts"))
+        await conn.execute(text("ALTER TABLE workouts_migration_temp RENAME TO workouts"))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_workouts_datetime ON workouts (datetime)"
+        ))
+    logger.info("Миграция завершена: workouts.trainer_id теперь nullable")
+
+
 async def init_db() -> None:
     """
     Инициализация базы данных.
@@ -54,6 +84,7 @@ async def init_db() -> None:
     """
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    await _migrate_workouts_trainer_nullable()
 
 
 @asynccontextmanager

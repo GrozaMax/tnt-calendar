@@ -122,4 +122,97 @@ class TestBookingService:
         assert len(bookings) >= 1
         workout_ids = [b.workout_id for b in bookings]
         assert future_workout.id in workout_ids
+    
+    @pytest.mark.asyncio
+    async def test_bookings_sorted_by_date(self, db_session, test_athlete, workout_repo, test_trainer, booking_repo):
+        """Тест сортировки записей по дате (ближайшие первыми)"""
+        # Создаем тренировки в разное время
+        workout_later = await workout_repo.create(
+            name="Later Workout",
+            datetime=datetime.now() + timedelta(days=3),
+            trainer_id=test_trainer.id
+        )
+        workout_soon = await workout_repo.create(
+            name="Soon Workout",
+            datetime=datetime.now() + timedelta(hours=5),
+            trainer_id=test_trainer.id
+        )
+        workout_middle = await workout_repo.create(
+            name="Middle Workout",
+            datetime=datetime.now() + timedelta(days=1),
+            trainer_id=test_trainer.id
+        )
+        await db_session.commit()
+        
+        # Записываем в "неправильном" порядке
+        await booking_repo.create(test_athlete.id, workout_later.id)
+        await booking_repo.create(test_athlete.id, workout_soon.id)
+        await booking_repo.create(test_athlete.id, workout_middle.id)
+        await db_session.commit()
+        
+        service = BookingService(db_session)
+        bookings = await service.get_user_active_bookings(test_athlete.id)
+        
+        # Проверяем что отсортированы (ближайшие первыми)
+        assert len(bookings) >= 3
+        dates = [b.workout.datetime for b in bookings]
+        assert dates == sorted(dates), "Записи должны быть отсортированы по дате"
+    
+    @pytest.mark.asyncio
+    async def test_book_full_workout_error_message(self, db_session, workout_repo, test_trainer, user_repo):
+        """Тест сообщения об ошибке при записи на заполненную тренировку"""
+        # Создаем тренировку на 1 место
+        workout = await workout_repo.create(
+            name="Full Workout Test",
+            datetime=datetime.now() + timedelta(hours=3),
+            max_participants=1,
+            trainer_id=test_trainer.id
+        )
+        await db_session.commit()
+        
+        # Заполняем
+        athlete1 = await user_repo.create(telegram_id=600001, first_name="First")
+        await db_session.commit()
+        
+        service = BookingService(db_session)
+        await service.book_workout(athlete1.id, workout.id)
+        
+        # Пытаемся записать второго
+        athlete2 = await user_repo.create(telegram_id=600002, first_name="Second")
+        await db_session.commit()
+        
+        result = await service.book_workout(athlete2.id, workout.id)
+        
+        assert result["success"] is False
+        # Проверяем что сообщение информативное
+        assert "мест нет" in result["message"].lower() or "максимум" in result["message"].lower()
+    
+    @pytest.mark.asyncio
+    async def test_booking_limit_error_message(self, db_session, workout_repo, test_trainer, test_athlete):
+        """Тест сообщения об ошибке при превышении лимита записей в день"""
+        # Создаем 3 тренировки на один день (сегодня)
+        # Use fixed time tomorrow morning so all 3 workouts land on the same day
+        base_dt = (datetime.now() + timedelta(days=1)).replace(hour=8, minute=0, second=0, microsecond=0)
+        workouts = []
+        for i in range(3):
+            workout = await workout_repo.create(
+                name=f"Workout {i}",
+                datetime=base_dt + timedelta(hours=i),
+                max_participants=10,
+                trainer_id=test_trainer.id
+            )
+            workouts.append(workout)
+        await db_session.commit()
+        
+        service = BookingService(db_session)
+        
+        # Записываемся на первые две (лимит = 2)
+        await service.book_workout(test_athlete.id, workouts[0].id)
+        await service.book_workout(test_athlete.id, workouts[1].id)
+        
+        # Третья должна быть с ошибкой лимита
+        result = await service.book_workout(test_athlete.id, workouts[2].id)
+        
+        assert result["success"] is False
+        assert "лимит" in result["message"].lower() or "уже записаны" in result["message"].lower()
 

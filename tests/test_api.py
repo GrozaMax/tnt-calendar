@@ -108,6 +108,59 @@ class TestWorkoutsAPI:
         response = api_client_admin.delete(f"/api/workouts/{created_workout['id']}")
         
         assert response.status_code == status.HTTP_204_NO_CONTENT
+    
+    def test_delete_workouts_by_range(self, api_client_admin, test_admin):
+        """Тест удаления тренировок по диапазону дат"""
+        # Создаем тренировки на разные даты
+        target_date = datetime.now() + timedelta(days=10)
+        
+        for i in range(3):
+            workout_data = {
+                "name": f"Range Test Workout {i}",
+                "datetime": (target_date + timedelta(days=i)).isoformat(),
+                "duration": 60,
+                "max_participants": 10,
+                "trainer_id": test_admin.id
+            }
+            api_client_admin.post("/api/workouts/", json=workout_data)
+        
+        # Удаляем по диапазону
+        date_from = target_date.date().isoformat()
+        date_to = (target_date + timedelta(days=2)).date().isoformat()
+        
+        response = api_client_admin.post(
+            "/api/workouts/delete-by-range",
+            json={"date_from": date_from, "date_to": date_to}
+        )
+        
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["status"] == "success"
+        assert data["deleted_workouts"] >= 3
+    
+    def test_delete_by_range_invalid_dates(self, api_client_admin):
+        """Тест: ошибка при неверном диапазоне дат (ОТ > ДО)"""
+        response = api_client_admin.post(
+            "/api/workouts/delete-by-range",
+            json={
+                "date_from": "2025-12-31",
+                "date_to": "2025-12-01"
+            }
+        )
+        
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+    
+    def test_delete_by_range_trainer_forbidden(self, api_client_trainer):
+        """Тест: тренер не может удалять по диапазону"""
+        response = api_client_trainer.post(
+            "/api/workouts/delete-by-range",
+            json={
+                "date_from": "2025-12-01",
+                "date_to": "2025-12-31"
+            }
+        )
+        
+        assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 class TestUsersAPI:

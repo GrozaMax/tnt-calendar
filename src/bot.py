@@ -7,7 +7,9 @@ from telegram import Update
 from telegram.ext import (
     Application,
     CommandHandler,
-    CallbackQueryHandler
+    CallbackQueryHandler,
+    MessageHandler,
+    filters
 )
 
 from src.config import Config
@@ -15,7 +17,8 @@ from src.database import init_db
 from src.handlers.base import (
     start_command,
     help_command,
-    error_handler
+    error_handler,
+    handle_text_message,
 )
 from src.handlers.athlete import (
     show_main_menu,
@@ -30,18 +33,31 @@ from src.handlers.athlete import (
     show_help,
     show_settings,
     show_language_selection,
-    set_language
+    set_language,
+    show_schedule_image,
 )
 from src.handlers.admin import (
     show_admin_menu,
     show_admin_workouts,
+    show_admin_day_workouts,
     show_workout_details,
-    show_users_stats
+    show_users_stats,
+    admin_delete_workout_confirm,
+    admin_cancel_delete,
+    admin_select_trainer,
+    admin_assign_trainer,
+    show_admin_schedule_image,
+    admin_upload_schedule_image_prompt,
+    admin_delete_schedule_image,
+    handle_admin_photo_upload,
 )
 from src.handlers.trainer import (
     show_trainer_menu,
     show_trainer_workouts,
-    show_trainer_workout_info
+    show_trainer_workout_info,
+    remove_athlete_from_workout,
+    show_free_slots,
+    assign_trainer_to_workout
 )
 from src.utils.decorators import ensure_user_exists
 
@@ -89,13 +105,7 @@ class TelegramBot:
         self.application.add_handler(
             CallbackQueryHandler(
                 self._wrap_with_user_check(show_schedule_for_day),
-                pattern='^schedule:(today|tomorrow)$'
-            )
-        )
-        self.application.add_handler(
-            CallbackQueryHandler(
-                self._wrap_with_user_check(show_schedule_for_day),
-                pattern='^schedule:back$'
+                pattern='^schedule:(today|tomorrow|back|\d{4}-\d{2}-\d{2})$'
             )
         )
         
@@ -212,6 +222,90 @@ class TelegramBot:
                 pattern='^admin_users_stats$'
             )
         )
+
+        # Подтверждение удаления тренировки
+        self.application.add_handler(
+            CallbackQueryHandler(
+                self._wrap_with_user_check(admin_delete_workout_confirm),
+                pattern='^admin_delete_workout_confirm:'
+            )
+        )
+
+        # Отмена удаления тренировки
+        self.application.add_handler(
+            CallbackQueryHandler(
+                self._wrap_with_user_check(admin_cancel_delete),
+                pattern='^admin_cancel_delete:'
+            )
+        )
+
+        # Расписание за конкретный день (из недельного выбора)
+        self.application.add_handler(
+            CallbackQueryHandler(
+                self._wrap_with_user_check(show_admin_day_workouts),
+                pattern='^admin_day:'
+            )
+        )
+
+        # Картинка расписания (атлет)
+        self.application.add_handler(
+            CallbackQueryHandler(
+                self._wrap_with_user_check(show_schedule_image),
+                pattern='^schedule_image$'
+            )
+        )
+
+        # Управление картинкой расписания (админ)
+        self.application.add_handler(
+            CallbackQueryHandler(
+                self._wrap_with_user_check(show_admin_schedule_image),
+                pattern='^admin_schedule_image$'
+            )
+        )
+        self.application.add_handler(
+            CallbackQueryHandler(
+                self._wrap_with_user_check(admin_upload_schedule_image_prompt),
+                pattern='^admin_upload_schedule_image$'
+            )
+        )
+        self.application.add_handler(
+            CallbackQueryHandler(
+                self._wrap_with_user_check(admin_delete_schedule_image),
+                pattern='^admin_delete_schedule_image$'
+            )
+        )
+
+        # Текстовые сообщения: нижняя панель навигации + ввод причины удаления тренировки
+        self.application.add_handler(
+            MessageHandler(
+                filters.TEXT & ~filters.COMMAND,
+                handle_text_message
+            )
+        )
+
+        # Фото от администратора (загрузка картинки расписания)
+        self.application.add_handler(
+            MessageHandler(
+                filters.PHOTO,
+                self._wrap_with_user_check(handle_admin_photo_upload)
+            )
+        )
+
+        # Выбор тренера для назначения
+        self.application.add_handler(
+            CallbackQueryHandler(
+                self._wrap_with_user_check(admin_select_trainer),
+                pattern='^admin_select_trainer:'
+            )
+        )
+
+        # Назначение тренера
+        self.application.add_handler(
+            CallbackQueryHandler(
+                self._wrap_with_user_check(admin_assign_trainer),
+                pattern='^admin_assign_trainer:'
+            )
+        )
         
         # === ПАНЕЛЬ ТРЕНЕРА (просмотр) ===
         
@@ -238,7 +332,31 @@ class TelegramBot:
                 pattern='^trainer_workout_info:'
             )
         )
-        
+
+        # Удаление атлета с тренировки (тренером)
+        self.application.add_handler(
+            CallbackQueryHandler(
+                self._wrap_with_user_check(remove_athlete_from_workout),
+                pattern='^trainer_remove_athlete:'
+            )
+        )
+
+        # Свободные слоты (без тренера)
+        self.application.add_handler(
+            CallbackQueryHandler(
+                self._wrap_with_user_check(show_free_slots),
+                pattern='^trainer_free_slots$'
+            )
+        )
+
+        # Назначение тренера на слот
+        self.application.add_handler(
+            CallbackQueryHandler(
+                self._wrap_with_user_check(assign_trainer_to_workout),
+                pattern='^trainer_assign:'
+            )
+        )
+
         # Обработчик ошибок
         self.application.add_error_handler(error_handler)
         

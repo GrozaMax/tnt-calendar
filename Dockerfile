@@ -9,5 +9,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Копируем код
 COPY . .
 
-# По умолчанию запускаем бота (переопределяется в Railway)
+# Expose port (Railway uses PORT env var)
+EXPOSE 8000
+
 CMD ["python", "main.py"]

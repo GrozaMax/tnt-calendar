@@ -1,0 +1,15 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.db
+.git/
+.github/
+.kilocode/
+tests/
+.pytest_cache/
+htmlcov/
+*.egg-info/
+dist/
+build/

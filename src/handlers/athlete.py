@@ -9,6 +9,7 @@ from telegram.ext import ContextTypes
 from src.database import get_session
 from src.database.repositories import WorkoutRepository, BookingRepository, UserRepository
 from src.services.booking_service import BookingService
+from src.services.notification_service import notify_trainer_new_booking, notify_trainer_booking_cancelled
 from src.keyboards.athlete_keyboards import (
     main_menu_keyboard,
     schedule_days_keyboard,
@@ -39,20 +40,25 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer()
         await query.edit_message_text(text, reply_markup=keyboard)
     else:
-        await update.message.reply_text(text, reply_markup=keyboard)
+        msg = await update.message.reply_text(text, reply_markup=keyboard)
+        context.user_data['nav_message_id'] = msg.message_id
+    context.user_data['current_screen'] = 'menu'
 
 
 async def show_schedule_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показать меню выбора дня"""
+    from src.models import UserRole
     query = update.callback_query
     await query.answer()
-    
+
     user: User = context.user_data.get('current_user')
     lang = user.language if user else 'ru'
-    
+    is_trainer_or_admin = user and user.role in (UserRole.TRAINER, UserRole.ADMIN)
+
     text = get_text('schedule.select_day', lang)
-    keyboard = schedule_days_keyboard(lang)
-    
+    back = 'trainer_menu' if is_trainer_or_admin else 'main_menu'
+    keyboard = schedule_days_keyboard(lang, back_callback=back)
+
     await query.edit_message_text(text, reply_markup=keyboard)
 
 
@@ -64,43 +70,46 @@ async def show_schedule_for_day(update: Update, context: ContextTypes.DEFAULT_TY
     user: User = context.user_data.get('current_user')
     lang = user.language if user else 'ru'
     
-    # Определяем день (today, tomorrow или ISO дата)
+    # Определяем дату: ISO-строка YYYY-MM-DD, 'today', 'tomorrow', или 'back'
     _, day = query.data.split(':', 1)
 
     if day == 'today':
         target_date = date.today()
-        day_name = get_text('schedule.today', lang)
     elif day == 'tomorrow':
         target_date = date.today() + timedelta(days=1)
-        day_name = get_text('schedule.tomorrow', lang)
+    elif day == 'back':
+        target_date = context.user_data.get('current_schedule_date', date.today())
     else:
-        # ISO дата (например 2026-03-22)
         target_date = date.fromisoformat(day)
-        day_name = target_date.strftime('%d.%m.%Y')
+
+    day_name = target_date.strftime('%d.%m.%Y')
 
     # Сохраняем текущую дату в контекст
     context.user_data['current_schedule_date'] = target_date
-    context.user_data['current_schedule_day'] = day
-    
+
     # Получаем тренировки
     async with get_session() as session:
         workout_repo = WorkoutRepository(session)
         all_workouts = await workout_repo.get_by_date(target_date, load_relations=True)
-    
-    # Фильтруем прошедшие тренировки (только для сегодняшнего дня)
-    if day == 'today':
+
+    # Фильтруем прошедшие тренировки для сегодняшнего дня
+    if target_date == date.today():
         now = datetime.now()
         workouts = [w for w in all_workouts if w.datetime > now]
     else:
         workouts = all_workouts
     
+    from src.models import UserRole
+    is_trainer_or_admin = user and user.role in (UserRole.TRAINER, UserRole.ADMIN)
+    back = 'trainer_menu' if is_trainer_or_admin else 'main_menu'
+
     if not workouts:
-        text = f"📅 *{day_name}* ({target_date.strftime('%d.%m.%Y')})\n\n"
+        text = f"📅 *{day_name}*\n\n"
         text += get_text('schedule.no_workouts', lang)
-        keyboard = schedule_days_keyboard(lang)
+        keyboard = schedule_days_keyboard(lang, back_callback=back)
     else:
-        text = f"📅 *{day_name}* ({target_date.strftime('%d.%m.%Y')})\n\n"
-        text += "Выберите тренировку:"
+        text = f"📅 *{day_name}*\n\n"
+        text += get_text('schedule.select_workout', lang)
         keyboard = workouts_list_keyboard(workouts, lang)
     
     try:
@@ -132,37 +141,58 @@ async def show_workout_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         workout = await workout_repo.get_by_id(workout_id, load_relations=True)
         
         if not workout:
-            await query.edit_message_text("❌ Тренировка не найдена")
+            await query.edit_message_text(get_text('schedule.workout_not_found', lang))
             return
-        
+
         # Проверяем, записан ли пользователь
         is_booked = False
         if user:
             booking = await booking_repo.get_by_user_and_workout(user.id, workout_id)
             is_booked = booking and booking.is_active
-        
+
+        trainer_name = workout.trainer.full_name if workout.trainer else get_text('schedule.no_trainer', lang)
+
         # Формируем текст
         text = f"📋 *{workout.name}*\n\n"
-        text += f"🕐 {workout.datetime.strftime('%d.%m.%Y %H:%M')}\n"
-        text += f"⏱ {workout.duration} мин\n"
-        text += f"👤 Тренер: {workout.trainer.full_name}\n"
-        text += f"👥 Записалось: {workout.current_participants}/{workout.max_participants}\n"
-        
+        text += get_text('schedule.time', lang, time=workout.datetime.strftime('%d.%m.%Y %H:%M')) + "\n"
+        text += get_text('schedule.duration', lang, duration=workout.duration) + "\n"
+        text += get_text('schedule.trainer', lang, name=trainer_name) + "\n"
+        text += get_text('schedule.participants', lang, count=workout.current_participants, max=workout.max_participants) + "\n"
+
         if workout.description:
             text += f"\n📝 {workout.description}\n"
-        
-        if is_booked:
-            text += "\n✅ *Вы записаны на эту тренировку*"
-        elif workout.is_full:
-            text += "\n❌ *Свободных мест нет*"
-        
-        keyboard = workout_actions_keyboard(
-            workout_id,
-            is_booked=is_booked,
-            is_full=workout.is_full,
-            lang=lang
-        )
-        
+
+        from src.models import UserRole
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+        is_trainer_or_admin = user and user.role in (UserRole.TRAINER, UserRole.ADMIN)
+
+        if is_trainer_or_admin:
+            # Тренер/Админ: только просмотр, без кнопок записи
+            keyboard_rows = []
+            if user.role == UserRole.TRAINER and workout.trainer_id == user.id:
+                keyboard_rows.append([
+                    InlineKeyboardButton(
+                        "👥 Управление участниками",
+                        callback_data=f'trainer_workout_info:{workout_id}'
+                    )
+                ])
+            keyboard_rows.append([
+                InlineKeyboardButton(get_text('menu.back', lang), callback_data='schedule:back')
+            ])
+            keyboard = InlineKeyboardMarkup(keyboard_rows)
+        else:
+            if is_booked:
+                text += "\n*" + get_text('schedule.workout_booked', lang) + "*"
+            elif workout.is_full:
+                text += "\n*" + get_text('schedule.full', lang) + "*"
+            keyboard = workout_actions_keyboard(
+                workout_id,
+                is_booked=is_booked,
+                is_full=workout.is_full,
+                lang=lang
+            )
+
         await query.edit_message_text(
             text,
             reply_markup=keyboard,
@@ -187,7 +217,7 @@ async def book_workout(update: Update, context: ContextTypes.DEFAULT_TYPE):
         workout_repo = WorkoutRepository(session)
         
         # Создаём запись
-        success, message, booking = await booking_service.create_booking(
+        success, message, _ = await booking_service.create_booking(
             user_id=user.id,
             workout_id=workout_id
         )
@@ -195,24 +225,59 @@ async def book_workout(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if success:
             # Получаем информацию о тренировке для подтверждения
             workout = await workout_repo.get_by_id(workout_id, load_relations=True)
-            
+
             confirmation_text = get_text(
                 'booking.success',
                 lang,
                 name=workout.name,
                 datetime=workout.datetime.strftime('%d.%m.%Y %H:%M'),
-                trainer=workout.trainer.full_name
+                trainer=workout.trainer.full_name if workout.trainer else 'Не назначен'
             )
-            
+
             await query.answer(get_text('booking.success', lang)[:200], show_alert=True)
             await query.edit_message_text(
                 confirmation_text,
                 reply_markup=back_to_main_menu_keyboard(lang)
             )
+            context.user_data['current_screen'] = None
+
+            # Уведомляем тренера о новой записи
+            if workout.trainer and workout.trainer.telegram_id:
+                sent = await notify_trainer_new_booking(
+                    bot=context.bot,
+                    trainer_telegram_id=workout.trainer.telegram_id,
+                    athlete_name=user.full_name,
+                    workout_name=workout.name,
+                    workout_datetime=workout.datetime.strftime('%d.%m.%Y %H:%M')
+                )
+                # После уведомления сбрасываем nav у тренера — чтобы следующий запрос создал новое сообщение внизу
+                if sent:
+                    trainer_ud = context.application.user_data.get(workout.trainer.telegram_id)
+                    if isinstance(trainer_ud, dict):
+                        trainer_ud.pop('nav_message_id', None)
+                        trainer_ud['current_screen'] = None
         else:
-            await query.answer(message, show_alert=True)
-            # Возвращаемся к информации о тренировке
-            await show_workout_info(update, context)
+            # Получаем информацию о тренировке для отображения
+            workout = await workout_repo.get_by_id(workout_id, load_relations=True)
+            
+            # Формируем текст с ошибкой
+            error_text = f"⚠️ *Не удалось записаться*\n\n"
+            error_text += f"{message}\n\n"
+            error_text += "━━━━━━━━━━━━━━━━━━━━\n\n"
+            
+            if workout:
+                trainer_name = workout.trainer.full_name if workout.trainer else get_text('schedule.no_trainer', lang)
+                error_text += f"📋 *{workout.name}*\n"
+                error_text += get_text('schedule.time', lang, time=workout.datetime.strftime('%d.%m.%Y %H:%M')) + "\n"
+                error_text += get_text('schedule.trainer', lang, name=trainer_name) + "\n"
+                error_text += get_text('schedule.participants', lang, count=workout.current_participants, max=workout.max_participants) + "\n"
+            
+            await query.edit_message_text(
+                error_text,
+                reply_markup=back_to_main_menu_keyboard(lang),
+                parse_mode='Markdown'
+            )
+            context.user_data['current_screen'] = None
 
 
 async def cancel_booking_from_workout(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -230,24 +295,41 @@ async def cancel_booking_from_workout(update: Update, context: ContextTypes.DEFA
     async with get_session() as session:
         booking_repo = BookingRepository(session)
         booking_service = BookingService(session)
-        
+        workout_repo = WorkoutRepository(session)
+
         # Находим запись
         booking = await booking_repo.get_by_user_and_workout(user.id, workout_id)
-        
+
         if not booking:
-            await query.answer("❌ Запись не найдена", show_alert=True)
+            await query.answer(get_text('booking.not_found', lang), show_alert=True)
             return
-        
+
         # Отменяем запись
         success, message = await booking_service.cancel_booking(booking.id, user.id)
-        
+
         await query.answer(message, show_alert=True)
-        
+
         if success:
             await query.edit_message_text(
                 get_text('booking.cancelled', lang),
                 reply_markup=back_to_main_menu_keyboard(lang)
             )
+
+            # Уведомляем тренера об отмене
+            workout = await workout_repo.get_by_id(workout_id, load_relations=True)
+            if workout and workout.trainer and workout.trainer.telegram_id:
+                sent = await notify_trainer_booking_cancelled(
+                    bot=context.bot,
+                    trainer_telegram_id=workout.trainer.telegram_id,
+                    athlete_name=user.full_name,
+                    workout_name=workout.name,
+                    workout_datetime=workout.datetime.strftime('%d.%m.%Y %H:%M')
+                )
+                if sent:
+                    trainer_ud = context.application.user_data.get(workout.trainer.telegram_id)
+                    if isinstance(trainer_ud, dict):
+                        trainer_ud.pop('nav_message_id', None)
+                        trainer_ud['current_screen'] = None
         else:
             await show_workout_info(update, context)
 
@@ -292,18 +374,19 @@ async def show_booking_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         booking = await booking_repo.get_by_id(booking_id, load_relations=True)
         
         if not booking or booking.user_id != user.id:
-            await query.answer("❌ Запись не найдена", show_alert=True)
+            await query.answer(get_text('booking.not_found', lang), show_alert=True)
             return
-        
+
         workout = booking.workout
-        
+        trainer_name = workout.trainer.full_name if workout.trainer else get_text('schedule.no_trainer', lang)
+
         text = get_text(
             'my_bookings.booking_info',
             lang,
             name=workout.name,
             datetime=workout.datetime.strftime('%d.%m.%Y %H:%M'),
-            trainer=workout.trainer.full_name,
-            status="✅ Активна" if booking.is_active else "❌ Отменена"
+            trainer=trainer_name,
+            status=get_text('booking.status_active', lang) if booking.is_active else get_text('booking.status_cancelled', lang)
         )
         
         keyboard = booking_info_keyboard(booking_id, lang)
@@ -314,21 +397,40 @@ async def cancel_booking_from_list(update: Update, context: ContextTypes.DEFAULT
     """Отменить запись из списка записей"""
     query = update.callback_query
     await query.answer()
-    
+
     user: User = context.user_data.get('current_user')
-    lang = user.language if user else 'ru'
-    
+
     # Получаем ID записи
     _, booking_id = query.data.split(':')
     booking_id = int(booking_id)
     
     async with get_session() as session:
+        booking_repo = BookingRepository(session)
         booking_service = BookingService(session)
+
+        # Получаем данные записи до отмены (для уведомления)
+        booking = await booking_repo.get_by_id(booking_id, load_relations=True)
+
         success, message = await booking_service.cancel_booking(booking_id, user.id)
-        
+
         await query.answer(message, show_alert=True)
-        
+
         if success:
+            # Уведомляем тренера об отмене
+            if booking and booking.workout and booking.workout.trainer and booking.workout.trainer.telegram_id:
+                sent = await notify_trainer_booking_cancelled(
+                    bot=context.bot,
+                    trainer_telegram_id=booking.workout.trainer.telegram_id,
+                    athlete_name=user.full_name,
+                    workout_name=booking.workout.name,
+                    workout_datetime=booking.workout.datetime.strftime('%d.%m.%Y %H:%M')
+                )
+                if sent:
+                    trainer_ud = context.application.user_data.get(booking.workout.trainer.telegram_id)
+                    if isinstance(trainer_ud, dict):
+                        trainer_ud.pop('nav_message_id', None)
+                        trainer_ud['current_screen'] = None
+
             # Возвращаемся к списку записей
             context.user_data['temp_callback_data'] = 'my_bookings'
             await show_my_bookings(update, context)
@@ -337,15 +439,22 @@ async def cancel_booking_from_list(update: Update, context: ContextTypes.DEFAULT
 
 
 async def show_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показать справку"""
+    """Показать справку (текст зависит от роли)"""
+    from src.models import UserRole
     query = update.callback_query
     if query:
         await query.answer()
-    
+
     user: User = context.user_data.get('current_user')
     lang = user.language if user else 'ru'
-    
-    text = get_text('common.help', lang)
+
+    if user and user.role == UserRole.ADMIN:
+        text = get_text('common.help_admin', lang)
+    elif user and user.role == UserRole.TRAINER:
+        text = get_text('common.help_trainer', lang)
+    else:
+        text = get_text('common.help_athlete', lang)
+
     keyboard = back_to_main_menu_keyboard(lang)
     
     if query:
@@ -429,7 +538,50 @@ async def set_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
     
     await query.answer(success_messages.get(lang_code, '✅ Language changed'), show_alert=True)
-    
+
+    # Обновляем нижнюю клавиатуру на новый язык и роль
+    from src.keyboards.athlete_keyboards import main_reply_keyboard
+    from src.models import UserRole
+    role_str = ('admin' if user.role == UserRole.ADMIN
+                else 'trainer' if user.role == UserRole.TRAINER
+                else 'athlete')
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="👇",
+        reply_markup=main_reply_keyboard(lang_code, role_str)
+    )
+
     # Возвращаемся в главное меню
     await show_main_menu(update, context)
+
+
+async def show_schedule_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показать сохранённую картинку расписания"""
+    from src.services.schedule_image_service import get_image_path
+    from src.keyboards.athlete_keyboards import schedule_days_keyboard
+    from src.models import UserRole
+
+    query = update.callback_query
+    await query.answer()
+
+    user: User = context.user_data.get('current_user')
+    lang = user.language if user else 'ru'
+    is_trainer_or_admin = user and user.role in (UserRole.TRAINER, UserRole.ADMIN)
+    back = 'trainer_menu' if is_trainer_or_admin else 'main_menu'
+
+    image_path = get_image_path()
+    if not image_path:
+        await query.edit_message_text(
+            "📸 *Картинка расписания*\n\nКартинка ещё не загружена.",
+            reply_markup=schedule_days_keyboard(lang, back_callback=back),
+            parse_mode='Markdown'
+        )
+        return
+
+    # Отправляем картинку новым сообщением (без подписи)
+    with open(image_path, 'rb') as f:
+        await context.bot.send_photo(
+            chat_id=update.effective_chat.id,
+            photo=f
+        )
 

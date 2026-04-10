@@ -55,15 +55,14 @@ class BookingService:
                 await self.session.commit()
                 return True, "✅ Запись восстановлена успешно", existing_booking
         
-        # Проверка лимита записей в день (максимум 2)
-        workout_date = workout.datetime.date()
-        bookings_count = await self.booking_repo.count_active_bookings_by_date(
-            user_id, workout_date
+        # Проверка дневного лимита (макс. 2 тренировки в день)
+        day_bookings = await self.booking_repo.get_active_bookings_by_date(
+            user_id, workout.datetime.date()
         )
-        can_book, limit_error = can_book_workout(bookings_count)
+        can_book, limit_error = can_book_workout(len(day_bookings))
         if not can_book:
             return False, limit_error, None
-        
+
         # Проверка свободных мест - используем прямой подсчет из БД
         current_count = await workout.get_current_participants_async(self.session)
         has_slots, slots_error = validate_workout_slot(
@@ -123,8 +122,24 @@ class BookingService:
             return {"success": True, "message": message, "booking": booking}
         return True, message
     
+    async def cancel_booking_by_trainer(self, booking_id: int, trainer_id: int, is_admin: bool = False) -> tuple[bool, str]:
+        """
+        Отменить запись атлета от имени тренера (или администратора).
+        Тренер может отменить только запись на свою тренировку; админ — на любую.
+        """
+        booking = await self.booking_repo.get_by_id(booking_id, load_relations=True)
+        if not booking:
+            return False, "❌ Запись не найдена"
+        if not is_admin and booking.workout.trainer_id != trainer_id:
+            return False, "❌ Это не ваша тренировка"
+        if not booking.is_active:
+            return False, "ℹ️ Запись уже отменена"
+        booking.cancel()
+        await self.session.commit()
+        return True, "✅ Атлет удалён с тренировки"
+
     async def get_user_active_bookings(self, user_id: int):
-        """Получить все активные записи пользователя"""
+        """Получить все активные записи пользователя (отсортированные по дате)"""
         bookings = await self.booking_repo.get_user_bookings(
             user_id,
             status=BookingStatus.ACTIVE,
@@ -137,6 +152,9 @@ class BookingService:
         future_bookings = [
             b for b in bookings if b.workout.datetime > now
         ]
+        
+        # Сортировка по дате/времени тренировки (ближайшие первыми)
+        future_bookings.sort(key=lambda b: b.workout.datetime)
         
         return future_bookings
     

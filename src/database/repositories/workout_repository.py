@@ -144,7 +144,7 @@ class WorkoutRepository:
             return None
         
         for key, value in kwargs.items():
-            if hasattr(workout, key) and value is not None:
+            if hasattr(workout, key):
                 setattr(workout, key, value)
         
         await self.session.flush()
@@ -182,6 +182,31 @@ class WorkoutRepository:
         
         return True
     
+    async def get_unassigned_workouts(self, days: int = 7) -> list[Workout]:
+        """Получить тренировки без назначенного тренера на ближайшие N дней"""
+        now = datetime.utcnow()
+        end = now + timedelta(days=days)
+        result = await self.session.execute(
+            select(Workout)
+            .where(
+                Workout.trainer_id.is_(None),
+                Workout.datetime >= now,
+                Workout.datetime <= end
+            )
+            .order_by(Workout.datetime)
+            .options(selectinload(Workout.bookings))
+        )
+        return list(result.scalars().all())
+
+    async def assign_trainer(self, workout_id: int, trainer_id: int) -> Optional[Workout]:
+        """Назначить тренера на тренировку"""
+        workout = await self.get_by_id(workout_id)
+        if not workout:
+            return None
+        workout.trainer_id = trainer_id
+        await self.session.flush()
+        return workout
+
     async def get_upcoming_workouts(
         self,
         limit: int = 10,

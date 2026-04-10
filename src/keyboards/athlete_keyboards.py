@@ -1,66 +1,106 @@
 """
 Inline-клавиатуры для атлета
 """
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from datetime import date, timedelta
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from typing import List
 
 from src.models import Workout
 from src.locales import get_text
 
+_LANGS = ('ru', 'en', 'ua', 'de', 'ge')
 
-def main_menu_keyboard(lang: str = 'ru', is_admin: bool = False, is_trainer: bool = False) -> InlineKeyboardMarkup:
-    """Главное меню атлета (с кнопками для тренеров/админов)"""
+# Наборы всех возможных текстов кнопок (для любого языка) — используются в handle_text_message
+REPLY_BOOK_WORKOUT_TEXTS    = frozenset(get_text('reply_kb.book_workout',    l) for l in _LANGS)
+REPLY_MY_BOOKINGS_TEXTS     = frozenset(get_text('reply_kb.my_bookings',     l) for l in _LANGS)
+REPLY_SCHEDULE_TEXTS        = frozenset(get_text('reply_kb.schedule',        l) for l in _LANGS)
+REPLY_MY_WORKOUTS_TEXTS     = frozenset(get_text('reply_kb.my_workouts',     l) for l in _LANGS)
+REPLY_SETTINGS_TEXTS        = frozenset(get_text('menu.settings',            l) for l in _LANGS)
+REPLY_HELP_TEXTS            = frozenset(get_text('menu.help',                l) for l in _LANGS)
+REPLY_TRAINER_SECTION_TEXTS = frozenset(get_text('reply_kb.trainer_section', l) for l in _LANGS)
+REPLY_ADMIN_PANEL_TEXTS     = frozenset(get_text('reply_kb.admin_panel',     l) for l in _LANGS)
+
+WEEKDAY_NAMES = {
+    'ru': ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
+    'en': ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'],
+    'ua': ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'],
+    'de': ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'],
+    'ge': ['ორშ', 'სამ', 'ოთხ', 'ხუთ', 'პარ', 'შაბ', 'კვი'],
+}
+
+
+def main_reply_keyboard(lang: str = 'ru', role: str = 'athlete') -> ReplyKeyboardMarkup:
+    """Постоянная нижняя клавиатура (под полем ввода текста), зависит от роли и языка"""
+    start_btn = KeyboardButton("/start")
+    if role == 'admin':
+        keyboard = [
+            [KeyboardButton(get_text('reply_kb.trainer_section', lang)),
+             KeyboardButton(get_text('reply_kb.admin_panel', lang))],
+            [start_btn],
+        ]
+    elif role == 'trainer':
+        keyboard = [
+            [KeyboardButton(get_text('reply_kb.trainer_section', lang))],
+            [start_btn],
+        ]
+    else:  # athlete
+        keyboard = [
+            [KeyboardButton(get_text('reply_kb.book_workout', lang))],
+            [KeyboardButton(get_text('reply_kb.my_bookings', lang))],
+            [start_btn],
+        ]
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, is_persistent=True)
+
+
+def trainer_section_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
+    """Инлайн-меню 'Тренерская': обзор расписания, мои тренировки, слоты"""
     keyboard = [
-        [InlineKeyboardButton(
-            get_text('menu.schedule', lang),
-            callback_data='schedule'
-        )],
-        [InlineKeyboardButton(
-            get_text('menu.my_bookings', lang),
-            callback_data='my_bookings'
-        )],
-        [InlineKeyboardButton(
-            get_text('menu.settings', lang),
-            callback_data='settings'
-        )],
-        [InlineKeyboardButton(
-            get_text('menu.help', lang),
-            callback_data='help'
-        )]
+        [InlineKeyboardButton(get_text('trainer.schedule_overview', lang), callback_data='schedule')],
+        [InlineKeyboardButton(get_text('trainer.my_workouts_btn', lang), callback_data='trainer_workouts:week')],
+        [InlineKeyboardButton(get_text('trainer.free_slots_btn', lang), callback_data='trainer_free_slots')],
+        [InlineKeyboardButton(get_text('menu.back', lang), callback_data='main_menu')],
     ]
-    
-    # Добавляем кнопку админ-панели для админов
-    if is_admin:
-        keyboard.insert(2, [InlineKeyboardButton(
-            "👑 Админ-панель",
-            callback_data='admin_menu'
-        )])
-    # Добавляем кнопку для тренеров (если это не админ)
-    elif is_trainer:
-        keyboard.insert(2, [InlineKeyboardButton(
-            "🤸‍♀️ Панель тренера",
-            callback_data='trainer_menu'
-        )])
-    
     return InlineKeyboardMarkup(keyboard)
 
 
-def schedule_days_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
-    """Выбор дня для просмотра расписания"""
-    keyboard = [
-        [InlineKeyboardButton(
-            get_text('schedule.today', lang),
-            callback_data='schedule:today'
-        )],
-        [InlineKeyboardButton(
-            get_text('schedule.tomorrow', lang),
-            callback_data='schedule:tomorrow'
-        )],
-        [InlineKeyboardButton(
-            get_text('menu.back', lang),
-            callback_data='main_menu'
-        )]
-    ]
+def main_menu_keyboard(lang: str = 'ru', is_admin: bool = False, is_trainer: bool = False) -> InlineKeyboardMarkup:
+    """Главное меню — зависит от роли пользователя"""
+    if is_admin:
+        keyboard = [
+            [InlineKeyboardButton(get_text('reply_kb.trainer_section', lang), callback_data='trainer_menu')],
+            [InlineKeyboardButton("👑 Админ-панель", callback_data='admin_menu')],
+            [InlineKeyboardButton(get_text('menu.settings', lang), callback_data='settings')],
+            [InlineKeyboardButton(get_text('menu.help', lang), callback_data='help')],
+        ]
+    elif is_trainer:
+        keyboard = [
+            [InlineKeyboardButton(get_text('reply_kb.trainer_section', lang), callback_data='trainer_menu')],
+            [InlineKeyboardButton(get_text('menu.settings', lang), callback_data='settings')],
+            [InlineKeyboardButton(get_text('menu.help', lang), callback_data='help')],
+        ]
+    else:
+        keyboard = [
+            [InlineKeyboardButton(get_text('reply_kb.book_workout', lang), callback_data='schedule')],
+            [InlineKeyboardButton(get_text('reply_kb.my_bookings', lang), callback_data='my_bookings')],
+            [InlineKeyboardButton(get_text('menu.settings', lang), callback_data='settings')],
+            [InlineKeyboardButton(get_text('menu.help', lang), callback_data='help')],
+        ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def schedule_days_keyboard(lang: str = 'ru', back_callback: str = 'main_menu') -> InlineKeyboardMarkup:
+    """Выбор дня — показывает текущую неделю (7 дней от сегодня)"""
+    today = date.today()
+    day_names = WEEKDAY_NAMES.get(lang, WEEKDAY_NAMES['ru'])
+    keyboard = []
+    for i in range(7):
+        d = today + timedelta(days=i)
+        label = f"{day_names[d.weekday()]} {d.strftime('%d.%m')}"
+        if i == 0:
+            label = f"📍 {label}"
+        keyboard.append([InlineKeyboardButton(label, callback_data=f'schedule:{d.isoformat()}')])
+    keyboard.append([InlineKeyboardButton(get_text('reply_kb.schedule_image', lang), callback_data='schedule_image')])
+    keyboard.append([InlineKeyboardButton(get_text('menu.back', lang), callback_data=back_callback)])
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -238,11 +278,11 @@ def settings_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
 def language_selection_keyboard() -> InlineKeyboardMarkup:
     """Клавиатура выбора языка"""
     keyboard = [
+        [InlineKeyboardButton("🇬🇪 ქართული", callback_data='set_lang:ge')],
+        [InlineKeyboardButton("🇬🇧 English", callback_data='set_lang:en')],
         [InlineKeyboardButton("🇷🇺 Русский", callback_data='set_lang:ru')],
         [InlineKeyboardButton("🇺🇦 Українська", callback_data='set_lang:ua')],
-        [InlineKeyboardButton("🇬🇧 English", callback_data='set_lang:en')],
         [InlineKeyboardButton("🇩🇪 Deutsch", callback_data='set_lang:de')],
-        [InlineKeyboardButton("🇬🇪 ქართული", callback_data='set_lang:ge')],
         [InlineKeyboardButton("◀️ Назад / Back", callback_data='settings')]
     ]
     return InlineKeyboardMarkup(keyboard)

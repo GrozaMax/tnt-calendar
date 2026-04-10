@@ -13,11 +13,15 @@
     "tomorrow": "Morgen",
     "no_workouts": "❌ Keine Trainings an diesem Tag",
     "select_day": "Wählen Sie einen Tag:",
+    "select_workout": "Wählen Sie ein Training:",
     "participants": "👥 Angemeldet: {count}/{max}",
     "trainer": "👤 Trainer: {name}",
-    "time": "🕐 Zeit: {time}",
-    "duration": "⏱ Dauer: {duration} Min",
-    "full": "❌ Voll"
+    "no_trainer": "Nicht zugewiesen",
+    "time": "🕐 {time}",
+    "duration": "⏱ {duration} Min",
+    "full": "❌ Keine freien Plätze",
+    "workout_not_found": "❌ Training nicht gefunden",
+    "workout_booked": "✅ Sie sind für dieses Training angemeldet"
   },
   "booking": {
     "button_book": "✅ Buchen",
@@ -28,7 +32,10 @@
     "limit_reached": "❌ Sie sind bereits für 2 Trainings an diesem Tag angemeldet. Stornieren Sie eines, um ein neues zu buchen.",
     "no_slots": "❌ Keine verfügbaren Plätze für dieses Training",
     "time_error": "❌ Buchung für dieses Training nicht verfügbar (nur für heute und morgen)",
-    "error": "❌ Buchungsfehler. Versuchen Sie es später erneut."
+    "error": "❌ Buchungsfehler. Versuchen Sie es später erneut.",
+    "not_found": "❌ Buchung nicht gefunden",
+    "status_active": "✅ Aktiv",
+    "status_cancelled": "❌ Storniert"
   },
   "my_bookings": {
     "title": "📋 Meine Buchungen",
@@ -38,9 +45,33 @@
   },
   "common": {
     "welcome": "👋 Hallo, {name}!\n\nIch bin der CrossFit Hub Bot. Ich helfe Ihnen bei der Verwaltung Ihrer Trainingsbuchungen.\n\nWählen Sie eine Aktion aus dem Menü unten:",
-    "help": "ℹ️ *CrossFit Hub Bot Hilfe*\n\n*Hauptfunktionen:*\n• Trainingsplan anzeigen\n• Trainings buchen (max. 2 pro Tag)\n• Buchungen stornieren\n• Ihre Buchungen anzeigen\n\n*Einschränkungen:*\n• Buchung nur für heute und morgen\n• Maximum 2 Buchungen pro Tag\n\nVerwenden Sie den Befehl /start zum Starten",
+    "help": "ℹ️ *CrossFit Hub Bot Hilfe*\n\nStarten: /start",
+    "help_athlete": "ℹ️ *Hilfe — CrossFit Hub*\n\n📅 *Zeitplan*\n• Tippen Sie «Training buchen» → Tag wählen\n• Buchung nur für heute und morgen möglich\n• Maximal 2 Buchungen pro Tag\n\n📋 *Meine Buchungen*\n• Aktive Buchungen anzeigen und stornieren\n\n📸 *Zeitplan-Bild*\n• Auf dem Tagesauswahlbildschirm gibt es eine Bildschaltfläche\n\n📝 *Einschränkungen*\n• Buchung nur für die nächsten 2 Tage\n• Nicht mehr als 2 Trainings pro Tag\n• Stornierung jederzeit möglich\n\nNeu starten: /start",
+    "help_trainer": "ℹ️ *Hilfe — CrossFit Hub (Trainer)*\n\n📅 *Zeitplanübersicht*\n• Trainings für die nächsten 7 Tage anzeigen\n• Eigenes Training antippen → «Teilnehmer verwalten»\n• Athleten vom Training entfernen\n\n🏋️ *Meine Trainings*\n• Nur Ihre zugewiesenen Trainings der Woche\n• Athlet entfernen: Taste «❌ Entfernen [Name]»\n\n📋 *Freie Slots*\n• Trainings ohne Trainer für 7 Tage\n• «Mich zuweisen» — fügt Sie dem Training hinzu\n\nNeu starten: /start",
+    "help_admin": "ℹ️ *Hilfe — CrossFit Hub (Administrator)*\n\n👑 *Admin-Panel (Bot)*\n• Zeitplan anzeigen: heute / morgen / Woche\n• Trainer einem Training zuweisen\n• Training löschen (Athleten werden benachrichtigt)\n• Zeitplan-Bild hochladen (📸)\n\n🌐 *Weboberfläche*\n• Trainings erstellen und bearbeiten\n• Massenerstell per Vorlage\n• Benutzer und Rollen verwalten\n\n🏋️ *Trainer-Panel (Bot)*\n• Zeitplanübersicht, eigene Trainings verwalten\n• Freie Slots selbst belegen\n\nNeu starten: /start",
     "error": "❌ Ein Fehler ist aufgetreten. Versuchen Sie es später erneut.",
     "user_not_found": "❌ Benutzer nicht gefunden. Verwenden Sie /start zur Registrierung."
+  },
+  "reply_kb": {
+    "book_workout": "📝 Training buchen",
+    "my_bookings": "📋 Meine Buchungen",
+    "schedule": "📅 Zeitplan",
+    "my_workouts": "🏋️ Meine Trainings",
+    "trainer_workouts_menu": "Meine Trainings:",
+    "trainer_section": "🏋️ Trainer-Panel",
+    "admin_panel": "👑 Admin-Panel",
+    "schedule_image": "📸 Zeitplan-Bild"
+  },
+  "notifications": {
+    "workout_cancelled_title": "❌ Training abgesagt",
+    "workout_cancelled_body": "Training *{name}* {datetime} wurde abgesagt.\nIhre Buchung wurde automatisch storniert.",
+    "cancellation_reason": "📝 *Grund:* {reason}",
+    "new_booking_title": "👤 Neue Buchung!",
+    "new_booking_body": "Athlet: *{athlete}*\nTraining: *{workout}*\nDatum/Zeit: *{datetime}*",
+    "booking_cancelled_title": "🚫 Buchung storniert",
+    "booking_cancelled_body": "Athlet: *{athlete}*\nTraining: *{workout}*\nDatum/Zeit: *{datetime}*",
+    "removed_by_trainer_title": "🚫 Vom Training entfernt",
+    "removed_by_trainer_body": "Der Trainer hat Sie vom Training *{name}* {datetime} entfernt."
   },
   "admin": {
     "menu": "👑 Admin-Menü",
@@ -50,7 +81,14 @@
   "trainer": {
     "menu": "🤸‍♀️ Trainer-Menü",
     "my_classes": "📊 Meine Kurse",
-    "book_slot": "🗓️ Slot buchen"
+    "book_slot": "🗓️ Slot buchen",
+    "section_title": "🏋️ Trainer-Panel",
+    "schedule_overview": "📅 Zeitplan-Übersicht",
+    "my_workouts_btn": "🏋️ Meine Trainings",
+    "today_workouts": "📅 Trainings Heute",
+    "tomorrow_workouts": "📅 Trainings Morgen",
+    "week_workouts": "📅 Trainings (Woche)",
+    "free_slots_btn": "📋 Freie Slots"
   }
 }
 
