@@ -12,5 +12,4 @@ COPY . .
 # Expose port (Railway uses PORT env var)
 EXPOSE 8000
 
-# По умолчанию запускаем бота (переопределяется в docker-compose)
 CMD ["python", "main.py"]

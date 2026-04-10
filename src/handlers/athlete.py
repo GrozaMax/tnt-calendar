@@ -3,6 +3,7 @@
 """
 from datetime import date, datetime, timedelta
 from telegram import Update
+from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
 from src.database import get_session
@@ -111,11 +112,14 @@ async def show_schedule_for_day(update: Update, context: ContextTypes.DEFAULT_TY
         text += get_text('schedule.select_workout', lang)
         keyboard = workouts_list_keyboard(workouts, lang)
     
-    await query.edit_message_text(
-        text,
-        reply_markup=keyboard,
-        parse_mode='Markdown'
-    )
+    try:
+        await query.edit_message_text(
+            text,
+            reply_markup=keyboard,
+            parse_mode='Markdown'
+        )
+    except BadRequest:
+        pass  # сообщение уже содержит тот же текст
 
 
 async def show_workout_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
