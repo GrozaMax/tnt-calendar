@@ -56,6 +56,12 @@
                         <button class="btn btn-primary" onclick="loadWeekWorkouts()" id="btnRefreshWeek">🔄 Обновить</button>
                     </div>
                 </div>
+
+                <div style="display:flex; align-items:center; justify-content:center; gap:12px; margin:12px 0;">
+                    <button class="btn btn-secondary btn-sm" onclick="navigateWeek(-1)" title="Предыдущая неделя">◀ Пред.</button>
+                    <button class="btn btn-sm" onclick="navigateWeek(0)" id="weekRangeLabel" title="Вернуться к текущей неделе" style="min-width:200px; font-weight:600; cursor:pointer;">—</button>
+                    <button class="btn btn-secondary btn-sm" onclick="navigateWeek(1)" title="Следующая неделя">След. ▶</button>
+                </div>
                 
                 <div id="weekWorkouts" class="week-view">
                     <div class="loading">Загрузка...</div>

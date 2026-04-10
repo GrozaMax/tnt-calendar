@@ -383,12 +383,13 @@ async def handle_admin_delete_reason(update: Update, context: ContextTypes.DEFAU
 
     # Заменяем "Удалить тренировку?" на "Тренировка удалена"
     reason_text = f"\n{get_text('admin.delete_reason', lang, reason=reason)}" if reason else ""
+    notified_count = len([a for a in athlete_users if a.get('notifications_enabled', True)])
     done_text = (
         f"{get_text('admin.delete_done', lang)}\n\n"
         f"*{workout_name}*\n"
         f"📅 {workout_dt}"
         f"{reason_text}\n\n"
-        f"{get_text('admin.notified_athletes', lang, count=len(athlete_users))}"
+        f"{get_text('admin.notified_athletes', lang, count=notified_count)}"
     )
     if confirm_message_id and confirm_chat_id:
         try:
