@@ -74,7 +74,7 @@ async def show_trainer_workouts(update: Update, context: ContextTypes.DEFAULT_TY
         text = f"📅 *{title}*\n\n"
         text += f"{get_text('trainer.no_workouts', lang)}\n\n"
         text += f"{get_text('trainer.use_web', lang)}\n"
-        text += "https://your-domain.com"
+        text += "https://tnt-calendar-adminweb.duckdns.org"
         
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup
         keyboard = [[InlineKeyboardButton(get_text('menu.back', lang), callback_data='trainer_menu')]]
