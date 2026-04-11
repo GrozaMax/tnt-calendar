@@ -104,7 +104,7 @@ async def get_workouts(
                 max_participants=w.max_participants,
                 current_participants=w.current_participants,
                 trainer_id=w.trainer_id,
-                trainer_name=w.trainer.full_name if w.trainer else "Unknown",
+                trainer_name=w.trainer.full_name if w.trainer else None,
                 created_at=w.created_at,
                 updated_at=w.updated_at
             )
@@ -144,7 +144,7 @@ async def get_workout(
             max_participants=workout.max_participants,
             current_participants=workout.current_participants,
             trainer_id=workout.trainer_id,
-            trainer_name=workout.trainer.full_name if workout.trainer else "Unknown",
+            trainer_name=workout.trainer.full_name if workout.trainer else None,
             created_at=workout.created_at,
             updated_at=workout.updated_at
         )
@@ -165,10 +165,7 @@ async def create_workout(
                 detail="Only admins can create workouts"
             )
 
-        # Если trainer_id не указан, используем текущего пользователя
         trainer_id = workout_data.trainer_id
-        if not trainer_id:
-            trainer_id = user.id
         
         # Создаём тренировку
         workout = await workout_repo.create(
@@ -195,7 +192,7 @@ async def create_workout(
             max_participants=workout.max_participants,
             current_participants=workout.current_participants,
             trainer_id=workout.trainer_id,
-            trainer_name=workout.trainer.full_name if workout.trainer else "Unknown",
+            trainer_name=workout.trainer.full_name if workout.trainer else None,
             created_at=workout.created_at,
             updated_at=workout.updated_at
         )
@@ -242,7 +239,7 @@ async def update_workout(
             max_participants=workout.max_participants,
             current_participants=workout.current_participants,
             trainer_id=workout.trainer_id,
-            trainer_name=workout.trainer.full_name if workout.trainer else "Unknown",
+            trainer_name=workout.trainer.full_name if workout.trainer else None,
             created_at=workout.created_at,
             updated_at=workout.updated_at
         )
@@ -537,8 +534,7 @@ async def bulk_create_schedule(
                 "max_participants": slot.max_participants,
             })
 
-        # Определяем тренера
-        trainer_id = request.trainer_id if request.trainer_id else user.id
+        trainer_id = request.trainer_id
 
         # ВАЖНО: Начинаем с понедельника текущей недели
         today = DateTime.now().date()
