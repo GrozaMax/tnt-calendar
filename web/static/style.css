@@ -665,6 +665,12 @@ h1 {
     color: var(--dark-color);
 }
 
+.mini-workout-trainer {
+    font-size: 12px;
+    color: #555;
+    margin-bottom: 4px;
+}
+
 .mini-workout-info {
     font-size: 12px;
     color: #666;

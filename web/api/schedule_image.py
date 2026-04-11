@@ -14,7 +14,7 @@ router = APIRouter()
 
 
 def _require_admin(user: User) -> None:
-    if user.role != UserRole.ADMIN:
+    if not user.is_admin():
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                             detail="Only admins can manage the schedule image")
 

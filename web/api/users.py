@@ -141,7 +141,7 @@ async def update_user_role(
     
     Только для админов.
     """
-    if current_user.role != UserRole.ADMIN:
+    if not current_user.is_admin():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admins can change user roles"
@@ -194,7 +194,7 @@ async def delete_user(
     Только для админов. Нельзя удалить себя.
     Обнуляет trainer_id на тренировках, удаляет записи (bookings), затем удаляет юзера.
     """
-    if current_user.role != UserRole.ADMIN:
+    if not current_user.is_admin():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admins can delete users"

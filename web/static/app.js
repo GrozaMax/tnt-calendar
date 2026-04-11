@@ -24,7 +24,7 @@ function getWorkoutColor(workoutName) {
         'Weightlifting': '#388E3C',  // Зеленый
         'Thai Boxing': '#F57C00',  // Оранжевый
         'Yoga': '#8E24AA',  // Фиолетовый
-        'Stretching': '#0097A7',  // Голубой
+        'Stretching': '#1565C0',  // Ярко-синий
         'CrossFit Football': '#C62828',  // Красный
     };
     
@@ -164,7 +164,7 @@ function displayWorkouts(workouts) {
             <td>${formatDateTime(workout.datetime)}</td>
             <td><strong>${workout.name}</strong></td>
             <td>${workout.duration} мин</td>
-            <td>${workout.trainer_name}</td>
+            <td>${workout.trainer_name || '<span style="color:#999;">— нет —</span>'}</td>
             <td>
                 <span class="badge ${badge}">
                     ${workout.current_participants}/${workout.max_participants}
@@ -275,7 +275,7 @@ async function viewWorkout(workoutId) {
                     📅 ${dateStr}<br>
                     🕐 ${timeStr}<br>
                     ⏱ ${workout.duration} минут<br>
-                    👤 Тренер: <strong>${workout.trainer_name}</strong>
+                    👤 Тренер: <strong>${workout.trainer_name || 'не назначен'}</strong>
                 </div>
             </div>
             
@@ -989,7 +989,7 @@ function displayTodayWorkouts(workouts) {
                 <div class="workout-card-status ${statusClass}"></div>
                 <div class="workout-card-time">${time}</div>
                 <div class="workout-card-name" style="color: ${workoutColor};">${workout.name}</div>
-                <div class="workout-card-trainer">👤 ${workout.trainer_name}</div>
+                <div class="workout-card-trainer">${workout.trainer_name ? '👤 ' + workout.trainer_name : '<span style="color:#999;">— без тренера —</span>'}</div>
                 <div class="workout-card-stats">
                     <div class="workout-card-participants">
                         ${statusEmoji} ${workout.current_participants}/${workout.max_participants}
@@ -1129,6 +1129,7 @@ function displayWeekWorkouts(workouts, mondayOverride) {
                             <div class="mini-workout-card ${statusClass}" onclick="viewWorkout(${workout.id})" style="border-left-color: ${workoutColor};">
                                 <div class="mini-workout-time" style="color: ${workoutColor};">${time}</div>
                                 <div class="mini-workout-name">${workout.name}</div>
+                                <div class="mini-workout-trainer">${workout.trainer_name ? '👤 ' + workout.trainer_name : '<span style="color:#999;">без тренера</span>'}</div>
                                 <div class="mini-workout-info">
                                     <span>${workout.current_participants}/${workout.max_participants}</span>
                                     <span>${workout.duration}м</span>

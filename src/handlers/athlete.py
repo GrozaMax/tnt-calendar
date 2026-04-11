@@ -23,7 +23,7 @@ from src.keyboards.athlete_keyboards import (
     language_selection_keyboard
 )
 from src.locales import get_text
-from src.models import User
+from src.models import User, UserRole
 
 
 async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -56,13 +56,12 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def show_schedule_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показать меню выбора дня"""
-    from src.models import UserRole
     query = update.callback_query
     await query.answer()
 
     user: User = context.user_data.get('current_user')
     lang = user.language if user else 'ru'
-    is_trainer_or_admin = user and user.role in (UserRole.TRAINER, UserRole.ADMIN)
+    is_trainer_or_admin = user and user.has_trainer_permissions()
 
     text = get_text('schedule.select_day', lang)
     back = 'trainer_menu' if is_trainer_or_admin else 'main_menu'
@@ -108,8 +107,7 @@ async def show_schedule_for_day(update: Update, context: ContextTypes.DEFAULT_TY
     else:
         workouts = all_workouts
     
-    from src.models import UserRole
-    is_trainer_or_admin = user and user.role in (UserRole.TRAINER, UserRole.ADMIN)
+    is_trainer_or_admin = user and user.has_trainer_permissions()
     back = 'trainer_menu' if is_trainer_or_admin else 'main_menu'
 
     if not workouts:
@@ -171,15 +169,14 @@ async def show_workout_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if workout.description:
             text += f"\n📝 {workout.description}\n"
 
-        from src.models import UserRole
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
-        is_trainer_or_admin = user and user.role in (UserRole.TRAINER, UserRole.ADMIN)
+        is_trainer_or_admin = user and user.has_trainer_permissions()
 
         if is_trainer_or_admin:
             # Тренер/Админ: только просмотр, без кнопок записи
             keyboard_rows = []
-            if user.role == UserRole.TRAINER and workout.trainer_id == user.id:
+            if (user.role == UserRole.TRAINER and workout.trainer_id == user.id) or user.is_admin():
                 keyboard_rows.append([
                     InlineKeyboardButton(
                         get_text('trainer.manage_participants', lang),
@@ -458,7 +455,6 @@ async def cancel_booking_from_list(update: Update, context: ContextTypes.DEFAULT
 
 async def show_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показать справку (текст зависит от роли)"""
-    from src.models import UserRole
     query = update.callback_query
     if query:
         await query.answer()
@@ -469,7 +465,7 @@ async def show_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     async with get_session() as session:
         max_per_day = await SettingsRepository(session).get_max_bookings_per_day()
 
-    if user and user.role == UserRole.ADMIN:
+    if user and user.is_admin():
         text = get_text('common.help_admin', lang)
     elif user and user.role == UserRole.TRAINER:
         text = get_text('common.help_trainer', lang)
@@ -598,10 +594,7 @@ async def set_language(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Обновляем нижнюю клавиатуру на новый язык и роль
     from src.keyboards.athlete_keyboards import main_reply_keyboard
-    from src.models import UserRole
-    role_str = ('admin' if user.role == UserRole.ADMIN
-                else 'trainer' if user.role == UserRole.TRAINER
-                else 'athlete')
+    role_str = user.ui_role_key()
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text="👇",
@@ -616,14 +609,13 @@ async def show_schedule_image(update: Update, context: ContextTypes.DEFAULT_TYPE
     """Показать сохранённую картинку расписания"""
     from src.services.schedule_image_service import get_image_path
     from src.keyboards.athlete_keyboards import schedule_days_keyboard
-    from src.models import UserRole
 
     query = update.callback_query
     await query.answer()
 
     user: User = context.user_data.get('current_user')
     lang = user.language if user else 'ru'
-    is_trainer_or_admin = user and user.role in (UserRole.TRAINER, UserRole.ADMIN)
+    is_trainer_or_admin = user and user.has_trainer_permissions()
     back = 'trainer_menu' if is_trainer_or_admin else 'main_menu'
 
     image_path = get_image_path()

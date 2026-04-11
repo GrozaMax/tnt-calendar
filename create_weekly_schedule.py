@@ -17,6 +17,7 @@ WEEKLY_SCHEDULE = {
     1: [  # ВТОРНИК
         {"time": "08:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "09:30", "name": "CrossFit", "duration": 60, "max_participants": 12},
+        {"time": "11:30", "name": "Stratching", "duration": 60, "max_participants": 12},
         {"time": "12:30", "name": "Weightlifting", "duration": 60, "max_participants": 10},
         {"time": "15:00", "name": "Thai Boxing", "duration": 60, "max_participants": 15},
         {"time": "18:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
@@ -26,7 +27,7 @@ WEEKLY_SCHEDULE = {
     2: [  # СРЕДА
         {"time": "08:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "09:30", "name": "CrossFit", "duration": 60, "max_participants": 12},
-        {"time": "11:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
+        {"time": "11:00", "name": "Yoga", "duration": 60, "max_participants": 12},
         {"time": "12:30", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "17:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "18:30", "name": "CrossFit", "duration": 60, "max_participants": 12},
@@ -35,6 +36,7 @@ WEEKLY_SCHEDULE = {
     3: [  # ЧЕТВЕРГ
         {"time": "08:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
         {"time": "09:30", "name": "CrossFit", "duration": 60, "max_participants": 12},
+        {"time": "11:00", "name": "Stratching", "duration": 60, "max_participants": 12},
         {"time": "12:30", "name": "Weightlifting", "duration": 60, "max_participants": 10},
         {"time": "15:00", "name": "Thai Boxing", "duration": 60, "max_participants": 15},
         {"time": "18:00", "name": "CrossFit", "duration": 60, "max_participants": 12},
@@ -95,7 +97,7 @@ def main():
     print("=" * 60)
     
     print("\n💡 Для создания расписания используйте веб-интерфейс:")
-    print("   http://localhost:8000")
+    print("   https://tnt-calendar-adminweb.duckdns.org")
     print("   Вкладка: ⚙️ Создать расписание")
 
 

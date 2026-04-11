@@ -115,6 +115,14 @@ class User(Base, TimestampMixin):
     def has_trainer_permissions(self) -> bool:
         """Проверка, есть ли у пользователя права тренера (включая админа)"""
         return self.is_admin() or self.role == UserRole.TRAINER
+
+    def ui_role_key(self) -> str:
+        """Роль для веба и клавиатур бота: супер-админ из ADMIN_TELEGRAM_IDS — 'admin'."""
+        if self.is_admin():
+            return UserRole.ADMIN.value
+        if self.role == UserRole.TRAINER:
+            return UserRole.TRAINER.value
+        return UserRole.ATHLETE.value
     
     def is_athlete(self) -> bool:
         """Проверка, является ли пользователь атлетом"""

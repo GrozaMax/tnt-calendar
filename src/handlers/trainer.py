@@ -74,7 +74,7 @@ async def show_trainer_workouts(update: Update, context: ContextTypes.DEFAULT_TY
         text = f"📅 *{title}*\n\n"
         text += f"{get_text('trainer.no_workouts', lang)}\n\n"
         text += f"{get_text('trainer.use_web', lang)}\n"
-        text += "https://your-domain.com"
+        text += "https://tnt-calendar-adminweb.duckdns.org"
         
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup
         keyboard = [[InlineKeyboardButton(get_text('menu.back', lang), callback_data='trainer_menu')]]
@@ -142,13 +142,14 @@ async def _render_trainer_workout(query, user: User, workout_id: int, lang: str)
             await query.answer(get_text('trainer.not_your_workout', lang), show_alert=True)
             return
 
-        text = f"📋 *{workout.name}*\n\n"
+        from html import escape
+        text = f"📋 <b>{escape(workout.name)}</b>\n\n"
         text += f"🕐 {workout.datetime.strftime('%d.%m.%Y %H:%M')}\n"
         text += f"{get_text('schedule.duration', lang, duration=workout.duration)}\n"
         text += f"{get_text('schedule.participants', lang, count=workout.current_participants, max=workout.max_participants)}\n"
 
         if workout.description:
-            text += f"\n📝 {workout.description}\n"
+            text += f"\n📝 {escape(workout.description)}\n"
 
         bookings = await booking_repo.get_workout_bookings(
             workout_id, status=BookingStatus.ACTIVE, load_relations=True
@@ -158,9 +159,9 @@ async def _render_trainer_workout(query, user: User, workout_id: int, lang: str)
         if bookings:
             text += f"\n{get_text('admin.participants_list', lang)}\n\n"
             for i, booking in enumerate(bookings[:20], 1):
-                text += f"{i}. {booking.user.full_name}"
+                text += f"{i}. {escape(booking.user.full_name)}"
                 if booking.user.username:
-                    text += f" (@{booking.user.username})"
+                    text += f" (@{escape(booking.user.username)})"
                 text += "\n"
                 keyboard.append([
                     InlineKeyboardButton(
@@ -175,7 +176,7 @@ async def _render_trainer_workout(query, user: User, workout_id: int, lang: str)
 
         keyboard.append([InlineKeyboardButton(get_text('menu.back', lang), callback_data='trainer_menu')])
 
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML')
 
 
 @role_required(UserRole.TRAINER, UserRole.ADMIN)
@@ -209,7 +210,7 @@ async def remove_athlete_from_workout(update: Update, context: ContextTypes.DEFA
             workout_name = booking.workout.name
             workout_datetime_str = booking.workout.datetime.strftime('%d.%m.%Y %H:%M')
 
-        is_admin = user.role == UserRole.ADMIN
+        is_admin = user.is_admin()
         success, message = await booking_service.cancel_booking_by_trainer(
             booking_id=booking_id,
             trainer_id=user.id,
@@ -246,15 +247,8 @@ async def show_trainer_workout_info(update: Update, context: ContextTypes.DEFAUL
     await _render_trainer_workout(query, user, int(workout_id_str), lang)
 
 
-@role_required(UserRole.TRAINER, UserRole.ADMIN)
-async def show_free_slots(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показать тренировки без назначенного тренера"""
-    query = update.callback_query
-    await query.answer()
-
-    user: User = context.user_data.get('current_user')
-    lang = user.language if user else 'ru'
-
+async def _render_free_slots(query, lang: str):
+    """Отрисовать список свободных слотов в сообщение."""
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
     async with get_session() as session:
@@ -275,6 +269,18 @@ async def show_free_slots(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard += back_btn
     await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+
+@role_required(UserRole.TRAINER, UserRole.ADMIN)
+async def show_free_slots(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показать тренировки без назначенного тренера"""
+    query = update.callback_query
+    await query.answer()
+
+    user: User = context.user_data.get('current_user')
+    lang = user.language if user else 'ru'
+
+    await _render_free_slots(query, lang)
 
 
 @role_required(UserRole.TRAINER, UserRole.ADMIN)
@@ -304,7 +310,18 @@ async def assign_trainer_to_workout(update: Update, context: ContextTypes.DEFAUL
         await workout_repo.assign_trainer(workout_id, user.id)
         await session.commit()
 
-    await query.answer(get_text('trainer.you_assigned', lang, name=workout.name), show_alert=True)
-    # Обновляем список свободных слотов
-    query.data = 'trainer_free_slots'
-    await show_free_slots(update, context)
+    await query.answer()
+
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    date_str = workout.datetime.strftime('%d.%m %H:%M')
+    text = (
+        f"✅ *Вы назначены на тренировку!*\n\n"
+        f"🏋️ {workout.name}\n"
+        f"📅 {date_str}\n"
+        f"👥 {workout.current_participants}/{workout.max_participants} участников"
+    )
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📋 Свободные слоты", callback_data='trainer_free_slots')],
+        [InlineKeyboardButton(get_text('menu.back', lang), callback_data='trainer_menu')],
+    ])
+    await query.edit_message_text(text, reply_markup=keyboard, parse_mode='Markdown')
