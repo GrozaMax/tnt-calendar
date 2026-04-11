@@ -246,15 +246,8 @@ async def show_trainer_workout_info(update: Update, context: ContextTypes.DEFAUL
     await _render_trainer_workout(query, user, int(workout_id_str), lang)
 
 
-@role_required(UserRole.TRAINER, UserRole.ADMIN)
-async def show_free_slots(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показать тренировки без назначенного тренера"""
-    query = update.callback_query
-    await query.answer()
-
-    user: User = context.user_data.get('current_user')
-    lang = user.language if user else 'ru'
-
+async def _render_free_slots(query, lang: str):
+    """Отрисовать список свободных слотов в сообщение."""
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
     async with get_session() as session:
@@ -275,6 +268,18 @@ async def show_free_slots(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard += back_btn
     await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+
+
+@role_required(UserRole.TRAINER, UserRole.ADMIN)
+async def show_free_slots(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показать тренировки без назначенного тренера"""
+    query = update.callback_query
+    await query.answer()
+
+    user: User = context.user_data.get('current_user')
+    lang = user.language if user else 'ru'
+
+    await _render_free_slots(query, lang)
 
 
 @role_required(UserRole.TRAINER, UserRole.ADMIN)
@@ -305,6 +310,4 @@ async def assign_trainer_to_workout(update: Update, context: ContextTypes.DEFAUL
         await session.commit()
 
     await query.answer(get_text('trainer.you_assigned', lang, name=workout.name), show_alert=True)
-    # Обновляем список свободных слотов
-    query.data = 'trainer_free_slots'
-    await show_free_slots(update, context)
+    await _render_free_slots(query, lang)

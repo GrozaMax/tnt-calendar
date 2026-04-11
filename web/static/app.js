@@ -164,7 +164,7 @@ function displayWorkouts(workouts) {
             <td>${formatDateTime(workout.datetime)}</td>
             <td><strong>${workout.name}</strong></td>
             <td>${workout.duration} мин</td>
-            <td>${workout.trainer_name}</td>
+            <td>${workout.trainer_name || '<span style="color:#999;">— нет —</span>'}</td>
             <td>
                 <span class="badge ${badge}">
                     ${workout.current_participants}/${workout.max_participants}
@@ -275,7 +275,7 @@ async function viewWorkout(workoutId) {
                     📅 ${dateStr}<br>
                     🕐 ${timeStr}<br>
                     ⏱ ${workout.duration} минут<br>
-                    👤 Тренер: <strong>${workout.trainer_name}</strong>
+                    👤 Тренер: <strong>${workout.trainer_name || 'не назначен'}</strong>
                 </div>
             </div>
             
