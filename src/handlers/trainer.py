@@ -142,13 +142,14 @@ async def _render_trainer_workout(query, user: User, workout_id: int, lang: str)
             await query.answer(get_text('trainer.not_your_workout', lang), show_alert=True)
             return
 
-        text = f"📋 *{workout.name}*\n\n"
+        from html import escape
+        text = f"📋 <b>{escape(workout.name)}</b>\n\n"
         text += f"🕐 {workout.datetime.strftime('%d.%m.%Y %H:%M')}\n"
         text += f"{get_text('schedule.duration', lang, duration=workout.duration)}\n"
         text += f"{get_text('schedule.participants', lang, count=workout.current_participants, max=workout.max_participants)}\n"
 
         if workout.description:
-            text += f"\n📝 {workout.description}\n"
+            text += f"\n📝 {escape(workout.description)}\n"
 
         bookings = await booking_repo.get_workout_bookings(
             workout_id, status=BookingStatus.ACTIVE, load_relations=True
@@ -158,9 +159,9 @@ async def _render_trainer_workout(query, user: User, workout_id: int, lang: str)
         if bookings:
             text += f"\n{get_text('admin.participants_list', lang)}\n\n"
             for i, booking in enumerate(bookings[:20], 1):
-                text += f"{i}. {booking.user.full_name}"
+                text += f"{i}. {escape(booking.user.full_name)}"
                 if booking.user.username:
-                    text += f" (@{booking.user.username})"
+                    text += f" (@{escape(booking.user.username)})"
                 text += "\n"
                 keyboard.append([
                     InlineKeyboardButton(
@@ -175,7 +176,7 @@ async def _render_trainer_workout(query, user: User, workout_id: int, lang: str)
 
         keyboard.append([InlineKeyboardButton(get_text('menu.back', lang), callback_data='trainer_menu')])
 
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML')
 
 
 @role_required(UserRole.TRAINER, UserRole.ADMIN)

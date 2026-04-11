@@ -180,17 +180,17 @@ async def show_workout_details(update: Update, context: ContextTypes.DEFAULT_TYP
             await query.answer(get_text('schedule.workout_not_found', lang), show_alert=True)
             return
         
-        text = f"📋 *{workout.name}*\n\n"
+        from html import escape
+        text = f"📋 <b>{escape(workout.name)}</b>\n\n"
         text += f"🕐 {workout.datetime.strftime('%d.%m.%Y %H:%M')}\n"
         text += get_text('schedule.duration', lang, duration=workout.duration) + "\n"
         trainer_name = workout.trainer.full_name if workout.trainer else get_text('schedule.no_trainer', lang)
-        text += get_text('schedule.trainer', lang, name=trainer_name) + "\n"
+        text += get_text('schedule.trainer', lang, name=escape(trainer_name)) + "\n"
         text += get_text('schedule.participants', lang, count=workout.current_participants, max=workout.max_participants) + "\n"
         
         if workout.description:
-            text += f"\n📝 {workout.description}\n"
+            text += f"\n📝 {escape(workout.description)}\n"
         
-        # Получаем список участников
         bookings = await booking_repo.get_workout_bookings(
             workout_id,
             status=BookingStatus.ACTIVE,
@@ -200,9 +200,9 @@ async def show_workout_details(update: Update, context: ContextTypes.DEFAULT_TYP
         if bookings:
             text += f"\n{get_text('admin.participants_list', lang)}\n\n"
             for i, booking in enumerate(bookings[:20], 1):
-                text += f"{i}. {booking.user.full_name}"
+                text += f"{i}. {escape(booking.user.full_name)}"
                 if booking.user.username:
-                    text += f" (@{booking.user.username})"
+                    text += f" (@{escape(booking.user.username)})"
                 text += "\n"
             
             if len(bookings) > 20:
@@ -221,7 +221,7 @@ async def show_workout_details(update: Update, context: ContextTypes.DEFAULT_TYP
         await query.edit_message_text(
             text,
             reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
+            parse_mode='HTML'
         )
 
 
