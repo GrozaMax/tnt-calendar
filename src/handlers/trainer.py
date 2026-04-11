@@ -309,5 +309,18 @@ async def assign_trainer_to_workout(update: Update, context: ContextTypes.DEFAUL
         await workout_repo.assign_trainer(workout_id, user.id)
         await session.commit()
 
-    await query.answer(get_text('trainer.you_assigned', lang, name=workout.name), show_alert=True)
-    await _render_free_slots(query, lang)
+    await query.answer()
+
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    date_str = workout.datetime.strftime('%d.%m %H:%M')
+    text = (
+        f"✅ *Вы назначены на тренировку!*\n\n"
+        f"🏋️ {workout.name}\n"
+        f"📅 {date_str}\n"
+        f"👥 {workout.current_participants}/{workout.max_participants} участников"
+    )
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📋 Свободные слоты", callback_data='trainer_free_slots')],
+        [InlineKeyboardButton(get_text('menu.back', lang), callback_data='trainer_menu')],
+    ])
+    await query.edit_message_text(text, reply_markup=keyboard, parse_mode='Markdown')
