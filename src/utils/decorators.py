@@ -36,8 +36,14 @@ def role_required(*required_roles: UserRole):
                         "❌ Пользователь не найден. Используйте /start"
                     )
                     return
-                
-                if user.role not in required_roles:
+
+                allowed = user.role in required_roles
+                if not allowed and UserRole.ADMIN in required_roles and user.is_admin():
+                    allowed = True
+                if not allowed and UserRole.TRAINER in required_roles and user.has_trainer_permissions():
+                    allowed = True
+
+                if not allowed:
                     await update.effective_message.reply_text(
                         "❌ У вас нет прав для выполнения этой команды."
                     )

@@ -209,7 +209,7 @@ async def remove_athlete_from_workout(update: Update, context: ContextTypes.DEFA
             workout_name = booking.workout.name
             workout_datetime_str = booking.workout.datetime.strftime('%d.%m.%Y %H:%M')
 
-        is_admin = user.role == UserRole.ADMIN
+        is_admin = user.is_admin()
         success, message = await booking_service.cancel_booking_by_trainer(
             booking_id=booking_id,
             trainer_id=user.id,

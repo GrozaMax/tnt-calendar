@@ -20,12 +20,9 @@ logger = logging.getLogger(__name__)
 
 
 def _user_role_str(user) -> str:
-    from src.models import UserRole
-    if user and user.role == UserRole.ADMIN:
-        return 'admin'
-    if user and user.role == UserRole.TRAINER:
-        return 'trainer'
-    return 'athlete'
+    if not user:
+        return 'athlete'
+    return user.ui_role_key()
 
 
 @ensure_user_exists

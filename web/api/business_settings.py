@@ -26,7 +26,7 @@ class GymSettingsPatch(BaseModel):
 
 @router.get("", response_model=GymSettingsOut)
 async def get_gym_settings(user: User = Depends(get_current_user)):
-    if user.role != UserRole.ADMIN:
+    if not user.is_admin():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admins can view gym settings",
@@ -44,7 +44,7 @@ async def patch_gym_settings(
     body: GymSettingsPatch,
     user: User = Depends(get_current_user),
 ):
-    if user.role != UserRole.ADMIN:
+    if not user.is_admin():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admins can change gym settings",

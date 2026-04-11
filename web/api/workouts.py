@@ -81,8 +81,8 @@ async def get_workouts(
     async with get_session() as session:
         workout_repo = WorkoutRepository(session)
         
-        # Если пользователь - тренер, показываем только его тренировки
-        if user.role == UserRole.TRAINER and not trainer_id:
+        # Тренер без админских прав видит только свои тренировки
+        if not user.is_admin() and user.role == UserRole.TRAINER and not trainer_id:
             trainer_id = user.id
         
         workouts = await workout_repo.get_by_date_range(
@@ -128,8 +128,8 @@ async def get_workout(
                 detail="Workout not found"
             )
         
-        # Тренер может видеть только свои тренировки
-        if user.role == UserRole.TRAINER and workout.trainer_id != user.id:
+        # Тренер (без админских прав) может видеть только свои тренировки
+        if not user.is_admin() and user.role == UserRole.TRAINER and workout.trainer_id != user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You can only view your own workouts"
@@ -159,8 +159,7 @@ async def create_workout(
     async with get_session() as session:
         workout_repo = WorkoutRepository(session)
         
-        # Только администраторы могут создавать тренировки
-        if user.role == UserRole.TRAINER:
+        if not user.is_admin():
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Only admins can create workouts"
@@ -219,8 +218,7 @@ async def update_workout(
                 detail="Workout not found"
             )
         
-        # Только администраторы могут редактировать тренировки
-        if user.role == UserRole.TRAINER:
+        if not user.is_admin():
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Only admins can edit workouts"
@@ -267,8 +265,7 @@ async def delete_workout(
                 detail="Workout not found"
             )
 
-        # Только администраторы могут удалять тренировки
-        if user.role == UserRole.TRAINER:
+        if not user.is_admin():
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Only admins can delete workouts"
@@ -331,8 +328,7 @@ async def get_workout_participants(
                 detail="Workout not found"
             )
         
-        # Тренер может видеть только участников своих тренировок
-        if user.role == UserRole.TRAINER and workout.trainer_id != user.id:
+        if not user.is_admin() and user.role == UserRole.TRAINER and workout.trainer_id != user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You can only view participants of your own workouts"
@@ -384,7 +380,7 @@ async def delete_workouts_by_range(
     logger = logging.getLogger(__name__)
     logger.info(f"Delete by range called by user {user.id}: {request.date_from} - {request.date_to}")
     
-    if user.role != UserRole.ADMIN:
+    if not user.is_admin():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admins can delete workouts by range"
@@ -462,7 +458,7 @@ async def clear_all_workouts(
     logger = logging.getLogger(__name__)
     logger.info(f"Clear all workouts called by user {user.id} (role: {user.role.value})")
     
-    if user.role != UserRole.ADMIN:
+    if not user.is_admin():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admins can clear all workouts"
@@ -509,7 +505,7 @@ async def bulk_create_schedule(
     Использует шаблон из create_weekly_schedule.py
     Только для админов.
     """
-    if user.role != UserRole.ADMIN:
+    if not user.is_admin():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admins can bulk create schedules"

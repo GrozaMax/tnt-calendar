@@ -134,7 +134,7 @@ async def login(request: LoginRequest):
                 "id": user.id,
                 "telegram_id": user.telegram_id,
                 "full_name": user.full_name,
-                "role": user.role.value
+                "role": user.ui_role_key(),
             }
         )
 
@@ -147,6 +147,6 @@ async def get_me(user = Depends(get_current_user)):
         "telegram_id": user.telegram_id,
         "full_name": user.full_name,
         "username": user.username,
-        "role": user.role.value,
+        "role": user.ui_role_key(),
         "language": user.language
     }
