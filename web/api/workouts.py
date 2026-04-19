@@ -536,14 +536,30 @@ async def bulk_create_schedule(
 
         trainer_id = request.trainer_id
 
-        # ВАЖНО: Начинаем с понедельника текущей недели
+        # Ищем первый понедельник, неделя которого пуста (нет тренировок)
         today = DateTime.now().date()
         days_since_monday = today.weekday()
-        start_date = today - timedelta(days=days_since_monday)
+        candidate_monday = today - timedelta(days=days_since_monday)  # понедельник текущей недели
+
+        # Сканируем недели вперёд, пока не найдём пустую
+        MAX_SCAN_WEEKS = 52  # защита от бесконечного цикла
+        for _ in range(MAX_SCAN_WEEKS):
+            week_end = candidate_monday + timedelta(days=6)
+            existing = await workout_repo.get_by_date_range(candidate_monday, week_end)
+            if not existing:
+                break
+            candidate_monday += timedelta(days=7)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Не удалось найти пустую неделю в ближайшие 52 недели"
+            )
+
+        start_date = candidate_monday
 
         logger.info(f"📅 Создание расписания:")
         logger.info(f"  Сегодня: {today} ({['Пн','Вт','Ср','Чт','Пт','Сб','Вс'][today.weekday()]})")
-        logger.info(f"  Начало расписания: {start_date}")
+        logger.info(f"  Первая пустая неделя: {start_date} ({['Пн','Вт','Ср','Чт','Пт','Сб','Вс'][start_date.weekday()]})")
         logger.info(f"  Недель для создания: {request.weeks}")
 
         total_created = 0

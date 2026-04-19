@@ -350,7 +350,7 @@ async function editWorkout(workoutId) {
 }
 
 async function bulkCreateSchedule(weeks) {
-    if (!confirm(`Создать расписание на ${weeks} недель?`)) {
+    if (!confirm(`Создать расписание на ${weeks} нед.?\nБудет найдена первая пустая неделя и заполнена.`)) {
         return;
     }
     
@@ -364,12 +364,11 @@ async function bulkCreateSchedule(weeks) {
         console.log('📊 Создано по датам:', result.created_by_date);
         console.log('🔍 Debug:', result.debug);
         
+        const startDate = new Date(result.start_date + 'T00:00:00');
+        const startStr = startDate.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        
         let message = `Создано ${result.created} тренировок (пропущено ${result.skipped})`;
-        if (result.debug) {
-            message += `\n\nОтладка:\n`;
-            message += `Сегодня: ${result.debug.today} (день недели: ${result.debug.today_weekday})\n`;
-            message += `Начало: ${result.debug.start_date} (день недели: ${result.debug.start_weekday})`;
-        }
+        message += `\n\nНачало: ${startStr} (Пн)`;
         
         showSuccess(message);
         loadTodayWorkouts();
