@@ -12,7 +12,7 @@ from telegram.ext import ContextTypes
 
 from src.database import get_session
 from src.database.repositories import WorkoutRepository, BookingRepository
-from src.keyboards.athlete_keyboards import trainer_section_keyboard
+from src.keyboards.athlete_keyboards import trainer_section_keyboard, format_dt
 from src.locales import get_text
 from src.models import User, UserRole, BookingStatus
 from src.services.booking_service import BookingService
@@ -103,7 +103,7 @@ async def show_trainer_workouts(update: Update, context: ContextTypes.DEFAULT_TY
             status = "🟢"
         
         button_text = (
-            f"{status} {workout.datetime.strftime('%d.%m %H:%M')} - {workout.name} "
+            f"{status} {format_dt(workout.datetime, '%d.%m %H:%M', lang)} - {workout.name} "
             f"({workout.current_participants}/{workout.max_participants})"
         )
         keyboard.append([
@@ -144,7 +144,7 @@ async def _render_trainer_workout(query, user: User, workout_id: int, lang: str)
 
         from html import escape
         text = f"📋 <b>{escape(workout.name)}</b>\n\n"
-        text += f"🕐 {workout.datetime.strftime('%d.%m.%Y %H:%M')}\n"
+        text += f"🕐 {format_dt(workout.datetime, '%d.%m.%Y %H:%M', lang)}\n"
         text += f"{get_text('schedule.duration', lang, duration=workout.duration)}\n"
         text += f"{get_text('schedule.participants', lang, count=workout.current_participants, max=workout.max_participants)}\n"
 
@@ -208,7 +208,7 @@ async def remove_athlete_from_workout(update: Update, context: ContextTypes.DEFA
             athlete_notifications_enabled = booking.user.notifications_enabled
         if booking and booking.workout:
             workout_name = booking.workout.name
-            workout_datetime_str = booking.workout.datetime.strftime('%d.%m.%Y %H:%M')
+            workout_datetime_str = format_dt(booking.workout.datetime, '%d.%m.%Y %H:%M', lang)
 
         is_admin = user.is_admin()
         success, message = await booking_service.cancel_booking_by_trainer(
@@ -264,7 +264,7 @@ async def _render_free_slots(query, lang: str):
     text = f"*{get_text('trainer.free_slots_btn', lang)}*\n\n{get_text('trainer.select_to_assign', lang)}\n"
     keyboard = []
     for workout in workouts[:20]:
-        button_text = f"{workout.datetime.strftime('%d.%m %H:%M')} - {workout.name} ({workout.current_participants}/{workout.max_participants})"
+        button_text = f"{format_dt(workout.datetime, '%d.%m %H:%M', lang)} - {workout.name} ({workout.current_participants}/{workout.max_participants})"
         keyboard.append([InlineKeyboardButton(button_text, callback_data=f'trainer_assign:{workout.id}')])
 
     keyboard += back_btn
@@ -313,7 +313,7 @@ async def assign_trainer_to_workout(update: Update, context: ContextTypes.DEFAUL
     await query.answer()
 
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-    date_str = workout.datetime.strftime('%d.%m %H:%M')
+    date_str = format_dt(workout.datetime, '%d.%m %H:%M', lang)
     text = (
         f"✅ *Вы назначены на тренировку!*\n\n"
         f"🏋️ {workout.name}\n"

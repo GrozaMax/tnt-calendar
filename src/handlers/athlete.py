@@ -20,7 +20,8 @@ from src.keyboards.athlete_keyboards import (
     booking_info_keyboard,
     back_to_main_menu_keyboard,
     settings_keyboard,
-    language_selection_keyboard
+    language_selection_keyboard,
+    format_dt,
 )
 from src.locales import get_text
 from src.models import User, UserRole
@@ -90,7 +91,7 @@ async def show_schedule_for_day(update: Update, context: ContextTypes.DEFAULT_TY
     else:
         target_date = date.fromisoformat(day)
 
-    day_name = target_date.strftime('%d.%m.%Y')
+    day_name = format_dt(target_date, '%d.%m.%Y', lang)
 
     # Сохраняем текущую дату в контекст
     context.user_data['current_schedule_date'] = target_date
@@ -161,7 +162,7 @@ async def show_workout_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Формируем текст
         text = f"📋 *{workout.name}*\n\n"
-        text += get_text('schedule.time', lang, time=workout.datetime.strftime('%d.%m.%Y %H:%M')) + "\n"
+        text += get_text('schedule.time', lang, time=format_dt(workout.datetime, '%d.%m.%Y %H:%M', lang)) + "\n"
         text += get_text('schedule.duration', lang, duration=workout.duration) + "\n"
         text += get_text('schedule.trainer', lang, name=trainer_name) + "\n"
         text += get_text('schedule.participants', lang, count=workout.current_participants, max=workout.max_participants) + "\n"
@@ -237,7 +238,7 @@ async def book_workout(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'booking.success',
                 lang,
                 name=workout.name,
-                datetime=workout.datetime.strftime('%d.%m.%Y %H:%M'),
+                datetime=format_dt(workout.datetime, '%d.%m.%Y %H:%M', lang),
                 trainer=workout.trainer.full_name if workout.trainer else 'Не назначен'
             )
 
@@ -255,7 +256,7 @@ async def book_workout(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     trainer_telegram_id=workout.trainer.telegram_id,
                     athlete_name=user.full_name,
                     workout_name=workout.name,
-                    workout_datetime=workout.datetime.strftime('%d.%m.%Y %H:%M'),
+                    workout_datetime=format_dt(workout.datetime, '%d.%m.%Y %H:%M', lang),
                     trainer_lang=workout.trainer.language or 'ru',
                     notifications_enabled=workout.trainer.notifications_enabled,
                 )
@@ -277,7 +278,7 @@ async def book_workout(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if workout:
                 trainer_name = workout.trainer.full_name if workout.trainer else get_text('schedule.no_trainer', lang)
                 error_text += f"📋 *{workout.name}*\n"
-                error_text += get_text('schedule.time', lang, time=workout.datetime.strftime('%d.%m.%Y %H:%M')) + "\n"
+                error_text += get_text('schedule.time', lang, time=format_dt(workout.datetime, '%d.%m.%Y %H:%M', lang)) + "\n"
                 error_text += get_text('schedule.trainer', lang, name=trainer_name) + "\n"
                 error_text += get_text('schedule.participants', lang, count=workout.current_participants, max=workout.max_participants) + "\n"
             
@@ -332,7 +333,7 @@ async def cancel_booking_from_workout(update: Update, context: ContextTypes.DEFA
                     trainer_telegram_id=workout.trainer.telegram_id,
                     athlete_name=user.full_name,
                     workout_name=workout.name,
-                    workout_datetime=workout.datetime.strftime('%d.%m.%Y %H:%M'),
+                    workout_datetime=format_dt(workout.datetime, '%d.%m.%Y %H:%M', lang),
                     trainer_lang=workout.trainer.language or 'ru',
                     notifications_enabled=workout.trainer.notifications_enabled,
                 )
@@ -395,7 +396,7 @@ async def show_booking_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'my_bookings.booking_info',
             lang,
             name=workout.name,
-            datetime=workout.datetime.strftime('%d.%m.%Y %H:%M'),
+            datetime=format_dt(workout.datetime, '%d.%m.%Y %H:%M', lang),
             trainer=trainer_name,
             status=get_text('booking.status_active', lang) if booking.is_active else get_text('booking.status_cancelled', lang)
         )
@@ -436,7 +437,7 @@ async def cancel_booking_from_list(update: Update, context: ContextTypes.DEFAULT
                     trainer_telegram_id=tr.telegram_id,
                     athlete_name=user.full_name,
                     workout_name=booking.workout.name,
-                    workout_datetime=booking.workout.datetime.strftime('%d.%m.%Y %H:%M'),
+                    workout_datetime=format_dt(booking.workout.datetime, '%d.%m.%Y %H:%M', lang),
                     trainer_lang=tr.language or 'ru',
                     notifications_enabled=tr.notifications_enabled,
                 )
