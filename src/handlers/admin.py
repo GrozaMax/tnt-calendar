@@ -7,6 +7,7 @@ from telegram.ext import ContextTypes
 
 from src.database import get_session
 from src.database.repositories import WorkoutRepository, UserRepository, BookingRepository
+from src.keyboards.athlete_keyboards import format_dt
 from src.locales import get_text
 from src.models import User, UserRole, BookingStatus
 from src.services.notification_service import notify_athlete_workout_cancelled
@@ -96,7 +97,7 @@ async def show_admin_workouts(update: Update, context: ContextTypes.DEFAULT_TYPE
         occupancy = workout.current_participants / workout.max_participants
         status = "🔴" if occupancy >= 1.0 else ("🟡" if occupancy >= 0.8 else "🟢")
         button_text = (
-            f"{status} {workout.datetime.strftime('%d.%m %H:%M')} - {workout.name} "
+            f"{status} {format_dt(workout.datetime, '%d.%m %H:%M', lang)} - {workout.name} "
             f"({workout.current_participants}/{workout.max_participants})"
         )
         keyboard.append([InlineKeyboardButton(button_text, callback_data=f'admin_workout_details:{workout.id}:{period}')])
@@ -125,7 +126,7 @@ async def show_admin_day_workouts(update: Update, context: ContextTypes.DEFAULT_
         workout_repo = WorkoutRepository(session)
         workouts = await workout_repo.get_by_date_range(target_date, target_date)
 
-    day_label = target_date.strftime('%d.%m.%Y')
+    day_label = format_dt(target_date, '%d.%m.%Y', lang)
     back_btn = [[InlineKeyboardButton(get_text('admin.back_to_week', lang), callback_data='admin_view_workouts:week')]]
 
     if not workouts:
@@ -182,7 +183,7 @@ async def show_workout_details(update: Update, context: ContextTypes.DEFAULT_TYP
         
         from html import escape
         text = f"📋 <b>{escape(workout.name)}</b>\n\n"
-        text += f"🕐 {workout.datetime.strftime('%d.%m.%Y %H:%M')}\n"
+        text += f"🕐 {format_dt(workout.datetime, '%d.%m.%Y %H:%M', lang)}\n"
         text += get_text('schedule.duration', lang, duration=workout.duration) + "\n"
         trainer_name = workout.trainer.full_name if workout.trainer else get_text('schedule.no_trainer', lang)
         text += get_text('schedule.trainer', lang, name=escape(trainer_name)) + "\n"
@@ -290,14 +291,14 @@ async def admin_delete_workout_confirm(update: Update, context: ContextTypes.DEF
     # Сохраняем ID тренировки и сообщения — ждём текстового сообщения с причиной
     context.user_data['pending_delete_workout_id'] = workout_id
     context.user_data['pending_delete_workout_name'] = workout.name
-    context.user_data['pending_delete_workout_dt'] = workout.datetime.strftime('%d.%m.%Y %H:%M')
+    context.user_data['pending_delete_workout_dt'] = format_dt(workout.datetime, '%d.%m.%Y %H:%M', lang)
     context.user_data['pending_delete_message_id'] = query.message.message_id
     context.user_data['pending_delete_chat_id'] = query.message.chat_id
 
     text = (
         f"{get_text('admin.delete_confirm', lang)}\n\n"
         f"*{workout.name}*\n"
-        f"📅 {workout.datetime.strftime('%d.%m.%Y %H:%M')}\n\n"
+        f"📅 {format_dt(workout.datetime, '%d.%m.%Y %H:%M', lang)}\n\n"
         f"{get_text('admin.delete_enter_reason', lang)}\n\n"
         f"{get_text('admin.delete_hint', lang)}"
     )
@@ -435,7 +436,7 @@ async def admin_select_trainer(update: Update, context: ContextTypes.DEFAULT_TYP
         trainers = await user_repo.get_all_trainers()
 
     current = get_text('admin.trainer_current', lang, name=workout.trainer.full_name) if workout.trainer else get_text('admin.trainer_none', lang)
-    text = get_text('admin.select_trainer', lang, name=workout.name, datetime=workout.datetime.strftime('%d.%m %H:%M'), current=current)
+    text = get_text('admin.select_trainer', lang, name=workout.name, datetime=format_dt(workout.datetime, '%d.%m %H:%M', lang), current=current)
 
     keyboard = []
     for t in trainers:
@@ -480,7 +481,7 @@ async def admin_assign_trainer(update: Update, context: ContextTypes.DEFAULT_TYP
         workout = await workout_repo.get_by_id(workout_id, load_relations=True)
 
     trainer_name = workout.trainer.full_name if workout.trainer else get_text('schedule.no_trainer', lang)
-    text = get_text('admin.trainer_assigned', lang, name=trainer_name, workout=workout.name, datetime=workout.datetime.strftime('%d.%m.%Y %H:%M'))
+    text = get_text('admin.trainer_assigned', lang, name=trainer_name, workout=workout.name, datetime=format_dt(workout.datetime, '%d.%m.%Y %H:%M', lang))
     keyboard = [[InlineKeyboardButton(get_text('admin.to_workout', lang), callback_data=f'admin_workout_details:{workout_id}:{source}')]]
     await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
 

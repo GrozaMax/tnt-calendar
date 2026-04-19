@@ -75,6 +75,141 @@ class TestBookingService:
         assert "мест нет" in result2["message"].lower() or "full" in result2["message"].lower()
     
     @pytest.mark.asyncio
+    async def test_two_athletes_book_same_workout(self, db_session, workout_repo, test_trainer, user_repo):
+        """Тест: два разных атлета записываются на одну тренировку (мест достаточно)"""
+        workout = await workout_repo.create(
+            name="Group Workout",
+            datetime=datetime.now() + timedelta(hours=2),
+            max_participants=10,
+            trainer_id=test_trainer.id
+        )
+        await db_session.commit()
+
+        athlete_a = await user_repo.create(telegram_id=700001, first_name="AthleteA")
+        athlete_b = await user_repo.create(telegram_id=700002, first_name="AthleteB")
+        await db_session.commit()
+
+        service = BookingService(db_session)
+
+        result_a = await service.book_workout(athlete_a.id, workout.id)
+        assert result_a["success"] is True
+        assert result_a["booking"].user_id == athlete_a.id
+
+        result_b = await service.book_workout(athlete_b.id, workout.id)
+        assert result_b["success"] is True
+        assert result_b["booking"].user_id == athlete_b.id
+
+        # Оба бронирования на одну тренировку, но разные атлеты
+        assert result_a["booking"].workout_id == result_b["booking"].workout_id
+        assert result_a["booking"].user_id != result_b["booking"].user_id
+
+    @pytest.mark.asyncio
+    async def test_cancel_and_rebook(self, db_session, workout_repo, test_trainer, user_repo):
+        """Тест: 2 атлета записались, один отписался и повторно записался"""
+        workout = await workout_repo.create(
+            name="Rebook Workout",
+            datetime=datetime.now() + timedelta(hours=2),
+            max_participants=10,
+            trainer_id=test_trainer.id
+        )
+        await db_session.commit()
+
+        athlete_a = await user_repo.create(telegram_id=710001, first_name="RebookA")
+        athlete_b = await user_repo.create(telegram_id=710002, first_name="RebookB")
+        await db_session.commit()
+
+        service = BookingService(db_session)
+
+        # Оба записываются
+        res_a = await service.book_workout(athlete_a.id, workout.id)
+        res_b = await service.book_workout(athlete_b.id, workout.id)
+        assert res_a["success"] is True
+        assert res_b["success"] is True
+
+        # Атлет A отменяет запись
+        cancel = await service.cancel_booking(res_a["booking"].id)
+        assert cancel["success"] is True
+
+        # Атлет A записывается повторно
+        res_a2 = await service.book_workout(athlete_a.id, workout.id)
+        assert res_a2["success"] is True
+        assert res_a2["booking"].user_id == athlete_a.id
+        assert res_a2["booking"].workout_id == workout.id
+
+    @pytest.mark.asyncio
+    async def test_two_athletes_different_workouts_same_day(self, db_session, workout_repo, test_trainer, user_repo):
+        """Тест: 2 атлета записываются на разные тренировки в один день"""
+        base_dt = (datetime.now() + timedelta(days=1)).replace(hour=9, minute=0, second=0, microsecond=0)
+
+        workout_morning = await workout_repo.create(
+            name="Morning WOD",
+            datetime=base_dt,
+            max_participants=10,
+            trainer_id=test_trainer.id
+        )
+        workout_evening = await workout_repo.create(
+            name="Evening WOD",
+            datetime=base_dt.replace(hour=18),
+            max_participants=10,
+            trainer_id=test_trainer.id
+        )
+        await db_session.commit()
+
+        athlete_a = await user_repo.create(telegram_id=720001, first_name="DayA")
+        athlete_b = await user_repo.create(telegram_id=720002, first_name="DayB")
+        await db_session.commit()
+
+        service = BookingService(db_session)
+
+        # A — на утреннюю, B — на вечернюю
+        res_a = await service.book_workout(athlete_a.id, workout_morning.id)
+        res_b = await service.book_workout(athlete_b.id, workout_evening.id)
+        assert res_a["success"] is True
+        assert res_b["success"] is True
+        assert res_a["booking"].workout_id == workout_morning.id
+        assert res_b["booking"].workout_id == workout_evening.id
+
+    @pytest.mark.asyncio
+    async def test_two_athletes_different_days(self, db_session, workout_repo, test_trainer, user_repo):
+        """Тест: 2 атлета записываются на тренировки в разные дни"""
+        tomorrow = (datetime.now() + timedelta(days=1)).replace(hour=10, minute=0, second=0, microsecond=0)
+        day_after = tomorrow + timedelta(days=1)
+
+        workout_day1 = await workout_repo.create(
+            name="Day1 WOD",
+            datetime=tomorrow,
+            max_participants=10,
+            trainer_id=test_trainer.id
+        )
+        workout_day2 = await workout_repo.create(
+            name="Day2 WOD",
+            datetime=day_after,
+            max_participants=10,
+            trainer_id=test_trainer.id
+        )
+        await db_session.commit()
+
+        athlete_a = await user_repo.create(telegram_id=730001, first_name="MultiDayA")
+        athlete_b = await user_repo.create(telegram_id=730002, first_name="MultiDayB")
+        await db_session.commit()
+
+        service = BookingService(db_session)
+
+        # A — завтра, B — послезавтра
+        res_a = await service.book_workout(athlete_a.id, workout_day1.id)
+        res_b = await service.book_workout(athlete_b.id, workout_day2.id)
+        assert res_a["success"] is True
+        assert res_b["success"] is True
+        assert res_a["booking"].workout_id == workout_day1.id
+        assert res_b["booking"].workout_id == workout_day2.id
+
+        # Проверяем предстоящие записи каждого
+        bookings_a = await service.get_user_upcoming_bookings(athlete_a.id)
+        bookings_b = await service.get_user_upcoming_bookings(athlete_b.id)
+        assert any(b.workout_id == workout_day1.id for b in bookings_a)
+        assert any(b.workout_id == workout_day2.id for b in bookings_b)
+
+    @pytest.mark.asyncio
     async def test_cancel_booking_success(self, db_session, test_booking):
         """Тест успешной отмены записи"""
         service = BookingService(db_session)

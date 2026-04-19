@@ -29,6 +29,19 @@ WEEKDAY_NAMES = {
 }
 
 
+def format_dt(dt, fmt: str = '%d.%m.%Y %H:%M', lang: str = 'ru') -> str:
+    """Format a datetime/date with a localized weekday prefix.
+
+    Examples:
+        format_dt(dt, '%d.%m.%Y %H:%M', 'ru')  ->  'Пн 20.04.2026 10:00'
+        format_dt(dt, '%d.%m %H:%M', 'en')      ->  'Mo 20.04 10:00'
+        format_dt(dt, '%d.%m.%Y', 'ru')          ->  'Пн 20.04.2026'
+    """
+    day_names = WEEKDAY_NAMES.get(lang, WEEKDAY_NAMES['ru'])
+    weekday = day_names[dt.weekday()]
+    return f"{weekday} {dt.strftime(fmt)}"
+
+
 def main_reply_keyboard(lang: str = 'ru', role: str = 'athlete') -> ReplyKeyboardMarkup:
     """Постоянная нижняя клавиатура (под полем ввода текста), зависит от роли и языка"""
     start_btn = KeyboardButton("/start")
@@ -212,7 +225,7 @@ def my_bookings_keyboard(
     
     for booking in bookings:
         workout = booking.workout
-        time_str = workout.datetime.strftime('%d.%m %H:%M')
+        time_str = format_dt(workout.datetime, '%d.%m %H:%M', lang)
         button_text = f"📋 {time_str} | {workout.name}"
         
         keyboard.append([
