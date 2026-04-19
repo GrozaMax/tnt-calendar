@@ -67,6 +67,8 @@ async def _nav_edit_or_send(update: Update, context: ContextTypes.DEFAULT_TYPE,
 @ensure_user_exists
 async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Единый обработчик текстовых сообщений: нижняя панель навигации + причина удаления тренировки"""
+    if not update.message:
+        return  # edited_message — игнорируем
     text = update.message.text
     user = context.user_data.get('current_user')
     lang = user.language if user else 'ru'

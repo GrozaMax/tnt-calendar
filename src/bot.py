@@ -287,7 +287,7 @@ class TelegramBot:
         # Текстовые сообщения: нижняя панель навигации + ввод причины удаления тренировки
         self.application.add_handler(
             MessageHandler(
-                filters.TEXT & ~filters.COMMAND,
+                filters.TEXT & ~filters.COMMAND & filters.UpdateType.MESSAGE,
                 handle_text_message
             )
         )
