@@ -73,7 +73,7 @@ def ensure_user_exists(func):
                 first_name=telegram_user.first_name,
                 last_name=telegram_user.last_name,
                 username=telegram_user.username,
-                language='ru'  # По умолчанию русский
+                language='en'  # По умолчанию английский
             )
             
             if created:
