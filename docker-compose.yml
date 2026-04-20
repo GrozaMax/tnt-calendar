@@ -1,6 +1,3 @@
-# Два контейнера (bot + web) с общим volume: SQLite и uploads доступны обоим.
-# Подходит для Oracle Cloud Compute (Docker Compose) и других VPS.
-
 services:
   bot:
     build: .
@@ -9,9 +6,12 @@ services:
     env_file: .env
     volumes:
       - app_data:/app/data
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     environment:
-      DATABASE_URL: sqlite+aiosqlite:////app/data/crossfit_hub.db
-      UPLOADS_DIR: /app/data/uploads
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/crossfit_hub.db
+      - UPLOADS_DIR=/app/data/uploads
+      - TZ=Asia/Tbilisi
     restart: unless-stopped
 
   web:
@@ -22,9 +22,12 @@ services:
       - "8000:8000"
     volumes:
       - app_data:/app/data
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     environment:
-      DATABASE_URL: sqlite+aiosqlite:////app/data/crossfit_hub.db
-      UPLOADS_DIR: /app/data/uploads
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/crossfit_hub.db
+      - UPLOADS_DIR=/app/data/uploads
+      - TZ=Asia/Tbilisi
     restart: unless-stopped
     depends_on:
       - bot
