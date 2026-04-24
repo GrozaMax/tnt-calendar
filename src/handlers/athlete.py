@@ -174,7 +174,7 @@ async def show_workout_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Добавляем список записавшихся
         if workout.bookings:
-            text += "\n" + get_text('schedule.participants_list', lang) + "\n"
+            text += "\n" + get_text('admin.participants_list', lang) + "\n"
             for b in workout.bookings:
                 if b.is_active:
                     user_str = escape(b.user.full_name) if b.user else "Unknown"
@@ -273,6 +273,7 @@ async def book_workout(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     workout_datetime=format_dt(workout.datetime, '%d.%m.%Y %H:%M', lang),
                     trainer_lang=workout.trainer.language or 'ru',
                     notifications_enabled=workout.trainer.notifications_enabled,
+                    guests=guests
                 )
                 # После уведомления сбрасываем nav у тренера — чтобы следующий запрос создал новое сообщение внизу
                 if sent:
@@ -428,7 +429,7 @@ async def show_booking_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         if workout_bookings:
-            text += "\n\n" + get_text('schedule.participants_list', lang) + "\n"
+            text += "\n\n" + get_text('admin.participants_list', lang) + "\n"
             for b in workout_bookings:
                 user_str = escape(b.user.full_name) if b.user else "Unknown"
                 if b.guests > 0:

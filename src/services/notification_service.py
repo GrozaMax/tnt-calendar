@@ -15,14 +15,20 @@ async def notify_trainer_new_booking(bot: Bot, trainer_telegram_id: int,
                                      athlete_name: str, workout_name: str,
                                      workout_datetime: str,
                                      trainer_lang: str = 'ru',
-                                     notifications_enabled: bool = True) -> Optional[Message]:
+                                     notifications_enabled: bool = True,
+                                     guests: int = 0) -> Optional[Message]:
     """Уведомить тренера о новой записи атлета. Возвращает отправленное сообщение или None."""
     if not notifications_enabled:
         return None
+        
+    athlete_display = athlete_name
+    if guests > 0:
+        athlete_display += f" (+{guests})"
+        
     text = (
         f"*{get_text('notifications.new_booking_title', trainer_lang)}*\n\n"
         + get_text('notifications.new_booking_body', trainer_lang,
-                   athlete=athlete_name, workout=workout_name, datetime=workout_datetime)
+                   athlete=athlete_display, workout=workout_name, datetime=workout_datetime)
     )
     try:
         return await bot.send_message(chat_id=trainer_telegram_id, text=text, parse_mode='Markdown')
