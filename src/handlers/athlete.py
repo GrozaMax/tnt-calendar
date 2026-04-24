@@ -170,6 +170,16 @@ async def show_workout_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if workout.description:
             text += f"\n📝 {workout.description}\n"
 
+        # Добавляем список записавшихся
+        if workout.bookings:
+            text += "\n" + get_text('schedule.participants_list', lang) + "\n"
+            for b in workout.bookings:
+                if b.is_active:
+                    user_str = b.user.full_name if b.user else "Unknown"
+                    if b.guests > 0:
+                        user_str += f" (+{b.guests})"
+                    text += f"• {user_str}\n"
+
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
         is_trainer_or_admin = user and user.has_trainer_permissions()
@@ -215,9 +225,10 @@ async def book_workout(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user: User = context.user_data.get('current_user')
     lang = user.language if user else 'ru'
     
-    # Получаем ID тренировки
-    _, workout_id = query.data.split(':')
-    workout_id = int(workout_id)
+    # Получаем ID тренировки и проверяем тип записи
+    action, workout_id_str = query.data.split(':')
+    workout_id = int(workout_id_str)
+    guests = 1 if action == 'book_plus_one' else 0
     
     async with get_session() as session:
         booking_service = BookingService(session)
@@ -227,7 +238,8 @@ async def book_workout(update: Update, context: ContextTypes.DEFAULT_TYPE):
         success, message, _ = await booking_service.create_booking(
             user_id=user.id,
             workout_id=workout_id,
-            lang=lang
+            lang=lang,
+            guests=guests
         )
         
         if success:
@@ -400,6 +412,17 @@ async def show_booking_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
             trainer=trainer_name,
             status=get_text('booking.status_active', lang) if booking.is_active else get_text('booking.status_cancelled', lang)
         )
+        if booking.guests > 0:
+            text += f"\n👥 Гостей (Гостей): {booking.guests}"
+
+        if workout.bookings:
+            text += "\n\n" + get_text('schedule.participants_list', lang) + "\n"
+            for b in workout.bookings:
+                if b.is_active:
+                    user_str = b.user.full_name if b.user else "Unknown"
+                    if b.guests > 0:
+                        user_str += f" (+{b.guests})"
+                    text += f"• {user_str}\n"
         
         keyboard = booking_info_keyboard(booking_id, lang)
         await query.edit_message_text(text, reply_markup=keyboard)

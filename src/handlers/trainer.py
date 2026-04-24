@@ -162,13 +162,9 @@ async def _render_trainer_workout(query, user: User, workout_id: int, lang: str)
                 text += f"{i}. {escape(booking.user.full_name)}"
                 if booking.user.username:
                     text += f" (@{escape(booking.user.username)})"
+                if booking.guests > 0:
+                    text += f" (+{booking.guests})"
                 text += "\n"
-                keyboard.append([
-                    InlineKeyboardButton(
-                        get_text('trainer.remove_athlete', lang, name=booking.user.full_name),
-                        callback_data=f'trainer_remove_athlete:{booking.id}:{workout_id}'
-                    )
-                ])
             if len(bookings) > 20:
                 text += f"\n{get_text('admin.and_more', lang, count=len(bookings) - 20)}"
         else:

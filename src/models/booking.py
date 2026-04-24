@@ -45,6 +45,8 @@ class Booking(Base, TimestampMixin):
         default=BookingStatus.ACTIVE,
         nullable=False
     )
+    guests: Mapped[int] = mapped_column(Integer, default=0)
+    
     
     # Relationships
     user: Mapped["User"] = relationship(

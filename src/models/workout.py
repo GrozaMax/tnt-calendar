@@ -83,7 +83,7 @@ class Workout(Base, TimestampMixin):
             # Пока связь не подгружена — не обращаемся к self.bookings
             if "bookings" in inst.unloaded:
                 return 0
-            return len([b for b in self.bookings if b.is_active])
+            return sum(1 + b.guests for b in self.bookings if b.is_active)
         except Exception:
             return 0
     
@@ -93,7 +93,7 @@ class Workout(Base, TimestampMixin):
         """SQL выражение для подсчета участников"""
         from src.models.booking import Booking, BookingStatus
         return (
-            select(func.count(Booking.id))
+            select(func.coalesce(func.sum(1 + Booking.guests), 0))
             .where(
                 Booking.workout_id == cls.id,
                 Booking.status == BookingStatus.ACTIVE
@@ -129,7 +129,7 @@ class Workout(Base, TimestampMixin):
         from src.models.booking import Booking, BookingStatus
         
         result = await session.execute(
-            select(func.count(Booking.id))
+            select(func.coalesce(func.sum(1 + Booking.guests), 0))
             .where(
                 Booking.workout_id == self.id,
                 Booking.status == BookingStatus.ACTIVE

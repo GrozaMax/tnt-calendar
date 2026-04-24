@@ -204,6 +204,8 @@ async def show_workout_details(update: Update, context: ContextTypes.DEFAULT_TYP
                 text += f"{i}. {escape(booking.user.full_name)}"
                 if booking.user.username:
                     text += f" (@{escape(booking.user.username)})"
+                if booking.guests > 0:
+                    text += f" (+{booking.guests})"
                 text += "\n"
             
             if len(bookings) > 20:

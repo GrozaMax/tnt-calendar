@@ -123,7 +123,7 @@ class TelegramBot:
         self.application.add_handler(
             CallbackQueryHandler(
                 self._wrap_with_user_check(book_workout),
-                pattern='^book:'
+                pattern='^book(_plus_one)?:'
             )
         )
         

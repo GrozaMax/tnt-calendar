@@ -191,11 +191,15 @@ def workout_actions_keyboard(
             )
         ])
     elif not is_full:
-        # Кнопка записи
+        # Кнопки записи
         keyboard.append([
             InlineKeyboardButton(
                 get_text('booking.button_book', lang),
                 callback_data=f'book:{workout_id}'
+            ),
+            InlineKeyboardButton(
+                get_text('booking.button_book', lang) + " +1",
+                callback_data=f'book_plus_one:{workout_id}'
             )
         ])
     
