@@ -188,17 +188,9 @@ async def show_workout_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if is_trainer_or_admin:
             # Тренер/Админ: только просмотр, без кнопок записи
-            keyboard_rows = []
-            if (user.role == UserRole.TRAINER and workout.trainer_id == user.id) or user.is_admin():
-                keyboard_rows.append([
-                    InlineKeyboardButton(
-                        get_text('trainer.manage_participants', lang),
-                        callback_data=f'trainer_workout_info:{workout_id}'
-                    )
-                ])
-            keyboard_rows.append([
-                InlineKeyboardButton(get_text('menu.back', lang), callback_data='schedule:back')
-            ])
+            keyboard_rows = [
+                [InlineKeyboardButton(get_text('menu.back', lang), callback_data='schedule:back')]
+            ]
             keyboard = InlineKeyboardMarkup(keyboard_rows)
         else:
             if is_booked:
