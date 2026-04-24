@@ -1,0 +1,22 @@
+🚀 <b>CrossFit Hub Update: The "+1" Feature & More!</b>
+
+We've just rolled out some exciting updates to make your training experience even smoother!
+
+✅ <b>Bring a Friend! (+1 Booking)</b>
+Now you can bring a guest to your workout! 
+• Use the new <b>"Book +1"</b> button to reserve an extra spot for a friend.
+• Participant lists now clearly show guest counts (e.g., <i>Name (+1)</i>).
+• Training capacity now automatically accounts for all guests.
+
+✅ <b>Improved Trainer Interface</b>
+Trainers now have a cleaner, more organized view of workout participants, matching the admin panel style for better consistency.
+
+✅ <b>Stability & Security</b>
+• Fixed display issues where certain symbols in names could crash the bot.
+• Improved database performance and reliability.
+• Cleaned up the project structure for faster updates in the future.
+
+✅ <b>New Broadcast System</b>
+Admins can now send important news and updates directly to everyone in the bot!
+
+Stay active and see you at the box! 🏋️‍♂️💪
