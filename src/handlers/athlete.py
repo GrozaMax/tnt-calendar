@@ -160,22 +160,24 @@ async def show_workout_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         trainer_name = workout.trainer.full_name if workout.trainer else get_text('schedule.no_trainer', lang)
 
+        from html import escape
+
         # Формируем текст
-        text = f"📋 *{workout.name}*\n\n"
+        text = f"📋 <b>{escape(workout.name)}</b>\n\n"
         text += get_text('schedule.time', lang, time=format_dt(workout.datetime, '%d.%m.%Y %H:%M', lang)) + "\n"
         text += get_text('schedule.duration', lang, duration=workout.duration) + "\n"
-        text += get_text('schedule.trainer', lang, name=trainer_name) + "\n"
+        text += get_text('schedule.trainer', lang, name=escape(trainer_name)) + "\n"
         text += get_text('schedule.participants', lang, count=workout.current_participants, max=workout.max_participants) + "\n"
 
         if workout.description:
-            text += f"\n📝 {workout.description}\n"
+            text += f"\n📝 {escape(workout.description)}\n"
 
         # Добавляем список записавшихся
         if workout.bookings:
             text += "\n" + get_text('schedule.participants_list', lang) + "\n"
             for b in workout.bookings:
                 if b.is_active:
-                    user_str = b.user.full_name if b.user else "Unknown"
+                    user_str = escape(b.user.full_name) if b.user else "Unknown"
                     if b.guests > 0:
                         user_str += f" (+{b.guests})"
                     text += f"• {user_str}\n"
@@ -200,9 +202,9 @@ async def show_workout_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard = InlineKeyboardMarkup(keyboard_rows)
         else:
             if is_booked:
-                text += "\n*" + get_text('schedule.workout_booked', lang) + "*"
+                text += "\n<b>" + get_text('schedule.workout_booked', lang) + "</b>"
             elif workout.is_full:
-                text += "\n*" + get_text('schedule.full', lang) + "*"
+                text += "\n<b>" + get_text('schedule.full', lang) + "</b>"
             keyboard = workout_actions_keyboard(
                 workout_id,
                 is_booked=is_booked,
@@ -213,7 +215,7 @@ async def show_workout_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             text,
             reply_markup=keyboard,
-            parse_mode='Markdown'
+            parse_mode='HTML'
         )
 
 
@@ -404,28 +406,37 @@ async def show_booking_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         workout = booking.workout
         trainer_name = workout.trainer.full_name if workout.trainer else get_text('schedule.no_trainer', lang)
 
+        from html import escape
+
         text = get_text(
             'my_bookings.booking_info',
             lang,
-            name=workout.name,
+            name=escape(workout.name),
             datetime=format_dt(workout.datetime, '%d.%m.%Y %H:%M', lang),
-            trainer=trainer_name,
+            trainer=escape(trainer_name),
             status=get_text('booking.status_active', lang) if booking.is_active else get_text('booking.status_cancelled', lang)
         )
         if booking.guests > 0:
-            text += f"\n👥 Гостей (Гостей): {booking.guests}"
+            text += f"\n👥 Гостей: {booking.guests}"
 
-        if workout.bookings:
+        # Явно загружаем список участников тренировки
+        from src.models import BookingStatus
+        workout_bookings = await booking_repo.get_workout_bookings(
+            workout.id, 
+            status=BookingStatus.ACTIVE, 
+            load_relations=True
+        )
+
+        if workout_bookings:
             text += "\n\n" + get_text('schedule.participants_list', lang) + "\n"
-            for b in workout.bookings:
-                if b.is_active:
-                    user_str = b.user.full_name if b.user else "Unknown"
-                    if b.guests > 0:
-                        user_str += f" (+{b.guests})"
-                    text += f"• {user_str}\n"
+            for b in workout_bookings:
+                user_str = escape(b.user.full_name) if b.user else "Unknown"
+                if b.guests > 0:
+                    user_str += f" (+{b.guests})"
+                text += f"• {user_str}\n"
         
         keyboard = booking_info_keyboard(booking_id, lang)
-        await query.edit_message_text(text, reply_markup=keyboard)
+        await query.edit_message_text(text, reply_markup=keyboard, parse_mode='HTML')
 
 
 async def cancel_booking_from_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
