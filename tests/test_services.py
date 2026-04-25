@@ -25,6 +25,24 @@ class TestBookingService:
         assert "booking" in result
         assert result["booking"].user_id == test_athlete.id
         assert result["booking"].workout_id == test_workout.id
+        assert result["booking"].guests == 0
+
+    @pytest.mark.asyncio
+    async def test_book_workout_with_guests(self, db_session, test_workout, test_athlete):
+        """Тест записи на тренировку +1"""
+        service = BookingService(db_session)
+        
+        result = await service.book_workout(
+            user_id=test_athlete.id,
+            workout_id=test_workout.id,
+            guests=1
+        )
+        
+        assert result["success"] is True
+        assert "booking" in result
+        assert result["booking"].user_id == test_athlete.id
+        assert result["booking"].workout_id == test_workout.id
+        assert result["booking"].guests == 1
     
     @pytest.mark.asyncio
     async def test_book_workout_duplicate(self, db_session, test_booking, test_athlete, test_workout):

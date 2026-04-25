@@ -29,7 +29,8 @@ class BookingService:
         self,
         user_id: int,
         workout_id: int,
-        lang: str = 'ru'
+        lang: str = 'ru',
+        guests: int = 0
     ) -> tuple[bool, str, object]:
         """
         Создать запись на тренировку с валидацией всех ограничений.
@@ -57,6 +58,7 @@ class BookingService:
             else:
                 # Если запись была отменена, реактивируем её
                 existing_booking.activate()
+                existing_booking.guests = guests
                 await self.session.commit()
                 return True, get_text('booking.restored', lang), existing_booking
         
@@ -88,6 +90,7 @@ class BookingService:
             workout_id=workout_id,
             status=BookingStatus.ACTIVE
         )
+        booking.guests = guests
         
         await self.session.commit()
         
@@ -170,14 +173,14 @@ class BookingService:
         return future_bookings
     
     # Aliases и обертки для тестов
-    async def book_workout(self, user_id: int, workout_id: int, lang: str = 'ru') -> dict:
+    async def book_workout(self, user_id: int, workout_id: int, lang: str = 'ru', guests: int = 0) -> dict:
         """
         Alias для create_booking, возвращает dict для совместимости с тестами
         
         Returns:
             dict: {"success": bool, "message": str, "booking": Booking | None}
         """
-        success, message, booking = await self.create_booking(user_id, workout_id, lang)
+        success, message, booking = await self.create_booking(user_id, workout_id, lang, guests=guests)
         return {
             "success": success,
             "message": message,

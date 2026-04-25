@@ -9,7 +9,7 @@ from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.models import Workout
+from src.models import Workout, Booking
 
 
 class WorkoutRepository:
@@ -36,7 +36,7 @@ class WorkoutRepository:
                 .where(Workout.id == workout_id)
                 .options(
                     selectinload(Workout.trainer),
-                    selectinload(Workout.bookings)
+                    selectinload(Workout.bookings).selectinload(Booking.user)
                 )
             )
             return result.scalar_one_or_none()
@@ -71,7 +71,7 @@ class WorkoutRepository:
         if load_relations:
             query = query.options(
                 selectinload(Workout.trainer),
-                selectinload(Workout.bookings)
+                selectinload(Workout.bookings).selectinload(Booking.user)
             )
         
         result = await self.session.execute(query)
@@ -108,7 +108,7 @@ class WorkoutRepository:
             .order_by(Workout.datetime)
             .options(
                 selectinload(Workout.trainer),
-                selectinload(Workout.bookings)
+                selectinload(Workout.bookings).selectinload(Booking.user)
             )
         )
         return list(result.scalars().all())
@@ -228,7 +228,7 @@ class WorkoutRepository:
             .limit(limit)
             .options(
                 selectinload(Workout.trainer),
-                selectinload(Workout.bookings)
+                selectinload(Workout.bookings).selectinload(Booking.user)
             )
         )
         return list(result.scalars().all())

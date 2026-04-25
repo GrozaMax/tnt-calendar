@@ -1,0 +1,14 @@
+🚀 <b>CrossFit Hub Update: The "+1" Feature & More!</b>
+
+Rolled out some updates!
+
+✅ <b>Bring a Friend! (+1 Booking)</b>
+Now you can bring a guest to your workout! 
+• Use the new <b>"Book +1"</b> button to reserve an extra spot for a friend.
+• Participant lists now clearly show guest counts (e.g., <i>Name (+1)</i>).
+• Training capacity now automatically accounts for all guests.
+
+✅ <b>Improved Trainer Interface</b>
+Trainers now have a cleaner, more organized view of workout participants, matching the admin panel style for better consistency.
+
+Stay active and see you in the TNT! 🏋️‍♂️💪

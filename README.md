@@ -32,88 +32,53 @@ Telegram-бот + веб-панель для управления расписа
 
 **Требования:** Python 3.9+, токен бота от [@BotFather](https://t.me/BotFather).
 
+1. **Установка:**
 ```bash
 git clone https://github.com/GrozaMax/tnt-calendar.git
 cd tnt-calendar
 python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-# Заполните TELEGRAM_BOT_TOKEN и ADMIN_TELEGRAM_IDS в .env
 ```
 
-Запуск:
+2. **Настройка:** Заполните `TELEGRAM_BOT_TOKEN` и `ADMIN_TELEGRAM_IDS` в `.env`. Чтобы узнать свой Telegram ID, напишите боту [@userinfobot](https://t.me/userinfobot).
 
+3. **Запуск:**
 ```bash
-python main.py       # бот
-python run_web.py    # веб-панель (http://localhost:8000)
+python main.py       # запуск бота
+python run_web.py    # запуск веб-панели (http://localhost:8000)
 ```
 
-При первом запуске автоматически создаётся БД `crossfit_hub.db` с нужными таблицами.
+При первом запуске автоматически создаётся БД `crossfit_hub.db`. Для входа в веб-панель используйте свой Telegram ID и секретный код по умолчанию (`secret123`).
+
+## Полезные скрипты
+
+Все вспомогательные скрипты находятся в папке `scripts/`:
+- `python scripts/create_test_data.py` — создание тестового тренера и тренировок.
+- `python scripts/create_weekly_schedule.py` — генерация расписания на неделю по шаблону.
 
 ## Деплой (Docker)
 
 Два контейнера (бот + веб) из одного образа, общий volume для SQLite и загрузок.
 
 ```bash
-git clone https://github.com/GrozaMax/tnt-calendar.git
-cd tnt-calendar
 bash setup.sh
 ```
 
-Скрипт `setup.sh` установит Docker, спросит токен бота и ваш Telegram ID, сгенерирует пароли, соберёт и запустит контейнеры.
-
-Обновление после мержа новых фич:
-
-```bash
-bash update.sh
-```
-
-Подробнее: [DEPLOY.md](DEPLOY.md).
-
-## Переменные окружения
-
-| Переменная | Описание |
-|---|---|
-| `TELEGRAM_BOT_TOKEN` | Токен от @BotFather |
-| `DATABASE_URL` | URL БД (SQLite или PostgreSQL) |
-| `ADMIN_TELEGRAM_IDS` | Telegram ID супер-админов через запятую |
-| `WEB_LOGIN_SECRET` | Общий пароль для входа в веб (fallback, если у пользователя нет индивидуального) |
-| `WEB_DEBUG` | `true` / `false` |
-| `UPLOADS_DIR` | Каталог загрузок (по умолчанию `uploads`) |
-| `LOG_LEVEL` | `DEBUG`, `INFO`, `WARNING`, `ERROR` |
-
-Полный список с комментариями: [.env.example](.env.example).
+Скрипт `setup.sh` установит Docker, спросит токен бота и ваш Telegram ID, соберёт и запустит контейнеры. Подробнее: [DEPLOY.md](DEPLOY.md).
 
 ## Структура проекта
 
 ```
 tnt-calendar/
-├── src/
-│   ├── models/              # ORM: User, Workout, Booking, AppSetting, ScheduleTemplate
-│   ├── database/
-│   │   ├── connection.py    # engine, init_db, миграции SQLite
-│   │   └── repositories/    # User, Workout, Booking, Settings
-│   ├── services/            # BookingService, WorkoutService, NotificationService, ...
-│   ├── handlers/            # Команды и callback для бота
-│   ├── keyboards/           # Inline-клавиатуры
-│   ├── locales/             # Переводы (ru, ua, en, de, ge)
-│   ├── constants.py         # Дефолт/границы лимита записей
-│   ├── bot.py               # Главный класс бота
-│   └── config.py
-├── web/
-│   ├── main.py              # FastAPI app
-│   ├── config.py            # WEB_LOGIN_SECRET, WEB_DEBUG, ...
-│   ├── api/                 # auth, workouts, users, business_settings, schedule_*
-│   ├── templates/
-│   └── static/app.js
-├── tests/                   # pytest + pytest-asyncio (50 тестов)
-├── main.py                  # Точка входа бота
-├── run_web.py               # Запуск веб-панели
-├── setup.sh                 # Автоматический деплой на VPS
-├── update.sh                # Обновление версии
-├── Dockerfile
-├── docker-compose.yml
-└── DEPLOY.md
+├── src/                 # Исходный код бота и общая бизнес-логика
+├── web/                 # Исходный код веб-панели (FastAPI)
+├── scripts/             # Утилитные скрипты (тестовые данные, расписание)
+├── tests/               # Тесты (pytest)
+├── main.py              # Точка входа бота
+├── run_web.py           # Точка входа веб-панели
+├── setup.sh             # Скрипт автоматического деплоя
+└── DEPLOY.md            # Инструкция по развертыванию
 ```
 
 ## Авторизация в веб-панели

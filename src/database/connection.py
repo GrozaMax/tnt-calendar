@@ -123,6 +123,29 @@ async def _migrate_users_web_password_hash() -> None:
         )
 
 
+async def _migrate_bookings_guests() -> None:
+    """Добавляет bookings.guests для существующих SQLite БД."""
+    if "sqlite" not in Config.DATABASE_URL:
+        return
+    import logging
+    from sqlalchemy import text
+
+    logger = logging.getLogger(__name__)
+    async with engine.connect() as conn:
+        result = await conn.execute(text("PRAGMA table_info(bookings)"))
+        cols = {row[1] for row in result.fetchall()}
+        if "guests" in cols:
+            return
+    logger.info("Миграция: bookings.guests")
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "ALTER TABLE bookings ADD COLUMN guests "
+                "INTEGER NOT NULL DEFAULT 0"
+            )
+        )
+
+
 async def init_db() -> None:
     """
     Инициализация базы данных.
@@ -133,6 +156,7 @@ async def init_db() -> None:
     await _migrate_users_notifications_enabled()
     await _migrate_users_web_password_hash()
     await _migrate_workouts_trainer_nullable()
+    await _migrate_bookings_guests()
     async with async_session_maker() as session:
         from src.database.repositories.settings_repository import SettingsRepository
 
