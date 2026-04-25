@@ -12,6 +12,7 @@ from src.keyboards.athlete_keyboards import (
     my_bookings_keyboard, back_to_main_menu_keyboard,
     REPLY_BOOK_WORKOUT_TEXTS, REPLY_MY_BOOKINGS_TEXTS,
     REPLY_TRAINER_SECTION_TEXTS, REPLY_ADMIN_PANEL_TEXTS,
+    REPLY_SETTINGS_TEXTS,
 )
 from src.keyboards.trainer_keyboards import trainer_section_keyboard
 from src.locales import get_text
