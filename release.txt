@@ -1,9 +1,5 @@
 Hey, Athletes!
 
-✅ <b>Fixed Schedule Image Placement</b>
-
-Fixed a bug where the schedule image would remain at the bottom of the chat. 📸
-
 ⏰ <b>Workout Reminders</b>
 
 You will now receive automatic reminders before your scheduled workouts!
