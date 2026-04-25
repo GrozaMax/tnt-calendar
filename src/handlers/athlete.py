@@ -655,10 +655,24 @@ async def show_schedule_image(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
         return
 
-    # Отправляем картинку новым сообщением (без подписи)
+    # Отправляем картинку
     with open(image_path, 'rb') as f:
         await context.bot.send_photo(
             chat_id=update.effective_chat.id,
             photo=f
         )
+
+    # Удаляем старое сообщение с кнопками, чтобы они не остались над картинкой
+    try:
+        await query.message.delete()
+    except Exception:
+        pass
+
+    # Отправляем новое сообщение с кнопками выбора дня под картинкой
+    sent = await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=get_text('schedule.select_day', lang),
+        reply_markup=schedule_days_keyboard(lang, back_callback=back)
+    )
+    context.user_data['nav_message_id'] = sent.message_id
 
