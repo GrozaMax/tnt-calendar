@@ -531,7 +531,11 @@ async def show_settings(
         else get_text('settings.notif_off', lang)
     )
     text = get_text('settings.intro', lang, notif_state=notif_state)
-    keyboard = settings_keyboard(lang, notifications_enabled=user.notifications_enabled)
+    keyboard = settings_keyboard(
+        lang, 
+        notifications_enabled=user.notifications_enabled,
+        reminder_minutes=user.reminder_minutes
+    )
 
     await query.edit_message_text(text, reply_markup=keyboard, parse_mode='Markdown')
 
@@ -559,6 +563,39 @@ async def toggle_notifications(update: Update, context: ContextTypes.DEFAULT_TYP
         else get_text('settings.toggled_off', lang)
     )
     await query.answer(msg, show_alert=True)
+    await show_settings(update, context, skip_answer=True)
+
+
+async def toggle_reminder_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Изменение времени напоминания о тренировке (30 -> 60 -> 90 -> 120 -> 30)"""
+    query = update.callback_query
+
+    user: User = context.user_data.get('current_user')
+    lang = user.language if user else 'ru'
+
+    if not user.notifications_enabled:
+        await query.answer()
+        return
+
+    async with get_session() as session:
+        user_repo = UserRepository(session)
+        db_user = await user_repo.get_by_id(user.id)
+        if not db_user:
+            await query.answer(get_text('common.user_not_found', lang), show_alert=True)
+            return
+            
+        times = [30, 60, 90, 120]
+        try:
+            current_index = times.index(db_user.reminder_minutes)
+            next_index = (current_index + 1) % len(times)
+        except ValueError:
+            next_index = 0
+            
+        db_user.reminder_minutes = times[next_index]
+        await session.commit()
+        user.reminder_minutes = db_user.reminder_minutes
+
+    await query.answer()
     await show_settings(update, context, skip_answer=True)
 
 

@@ -3,6 +3,7 @@
 """
 import pytest
 from datetime import datetime, timedelta
+from contextlib import asynccontextmanager
 
 from src.services.booking_service import BookingService
 from src.models import BookingStatus
@@ -368,4 +369,73 @@ class TestBookingService:
         
         assert result["success"] is False
         assert "лимит" in result["message"].lower() or "уже записаны" in result["message"].lower()
+
+
+class TestNotificationService:
+    """Тесты сервиса уведомлений"""
+
+    @pytest.mark.asyncio
+    async def test_check_workout_reminders(self, db_session, test_athlete, test_workout, booking_repo):
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from src.services.notification_service import check_workout_reminders
+
+        # Подготавливаем данные
+        test_workout.datetime = datetime.now() + timedelta(minutes=45)
+        test_athlete.notifications_enabled = True
+        test_athlete.reminder_minutes = 60
+        await db_session.commit()
+
+        booking = await booking_repo.create(test_athlete.id, test_workout.id)
+        booking.reminder_sent = False
+        await db_session.commit()
+
+        mock_context = MagicMock()
+        mock_context.bot = AsyncMock()
+
+        # Патчим async_session_maker внутри notification_service чтобы он возвращал db_session
+        @asynccontextmanager
+        async def _mock_session_maker():
+            yield db_session
+
+        with patch("src.services.notification_service.async_session_maker", _mock_session_maker):
+            with patch("src.services.notification_service.notify_athlete_workout_reminder", new_callable=AsyncMock) as mock_notify:
+                await check_workout_reminders(mock_context)
+                
+                # Уведомление должно быть отправлено, т.к. 45 минут < 60 минут (настройка)
+                mock_notify.assert_called_once()
+                assert mock_notify.call_args[1]["athlete_telegram_id"] == test_athlete.telegram_id
+                
+        # Проверяем что в БД флаг изменился
+        await db_session.refresh(booking)
+        assert booking.reminder_sent is True
+
+    @pytest.mark.asyncio
+    async def test_check_workout_reminders_too_early(self, db_session, test_athlete, test_workout, booking_repo):
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from src.services.notification_service import check_workout_reminders
+
+        test_workout.datetime = datetime.now() + timedelta(minutes=90)
+        test_athlete.notifications_enabled = True
+        test_athlete.reminder_minutes = 60
+        await db_session.commit()
+
+        booking = await booking_repo.create(test_athlete.id, test_workout.id)
+        booking.reminder_sent = False
+        await db_session.commit()
+
+        mock_context = MagicMock()
+
+        @asynccontextmanager
+        async def _mock_session_maker():
+            yield db_session
+
+        with patch("src.services.notification_service.async_session_maker", _mock_session_maker):
+            with patch("src.services.notification_service.notify_athlete_workout_reminder", new_callable=AsyncMock) as mock_notify:
+                await check_workout_reminders(mock_context)
+                
+                # Уведомление НЕ должно быть отправлено, т.к. 90 минут > 60 минут
+                mock_notify.assert_not_called()
+                
+        await db_session.refresh(booking)
+        assert booking.reminder_sent is False
 
