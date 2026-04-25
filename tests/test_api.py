@@ -173,8 +173,10 @@ class TestUsersAPI:
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert isinstance(data, list)
-        assert len(data) > 0
+        assert isinstance(data, dict)
+        assert "users" in data
+        assert isinstance(data["users"], list)
+        assert len(data["users"]) > 0
 
     async def test_get_user_by_id(self, api_client_admin, test_athlete):
         """Тест получения пользователя по ID"""
@@ -209,7 +211,8 @@ class TestUsersAPI:
     async def test_users_include_has_web_password(self, api_client_admin):
         response = await api_client_admin.get("/api/users/")
         assert response.status_code == status.HTTP_200_OK
-        for row in response.json():
+        data = response.json()
+        for row in data["users"]:
             assert "has_web_password" in row
 
 
