@@ -1,225 +1,144 @@
 """
 Inline-клавиатуры для администратора
 """
+from datetime import date, timedelta
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from typing import List
 
-from src.models import Workout, User
 from src.locales import get_text
+from src.keyboards.athlete_keyboards import WEEKDAY_NAMES, format_dt
 
 
 def admin_main_menu_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
     """Главное меню администратора"""
     keyboard = [
-        [InlineKeyboardButton(
-            "📅 Создать расписание",
-            callback_data='admin_create_schedule'
-        )],
-        [InlineKeyboardButton(
-            "📋 Управление тренировками",
-            callback_data='admin_manage_workouts'
-        )],
-        [InlineKeyboardButton(
-            "👥 Управление пользователями",
-            callback_data='admin_manage_users'
-        )],
-        [InlineKeyboardButton(
-            get_text('menu.back', lang),
-            callback_data='main_menu'
-        )]
+        [InlineKeyboardButton(get_text('admin.schedule_today', lang), callback_data='admin_view_workouts:today')],
+        [InlineKeyboardButton(get_text('admin.schedule_tomorrow', lang), callback_data='admin_view_workouts:tomorrow')],
+        [InlineKeyboardButton(get_text('admin.schedule_week', lang), callback_data='admin_view_workouts:week')],
+        [InlineKeyboardButton(get_text('admin.users_stats', lang), callback_data='admin_users_stats')],
+        [InlineKeyboardButton(get_text('admin.schedule_image', lang), callback_data='admin_schedule_image')],
+        [InlineKeyboardButton(get_text('menu.back', lang), callback_data='main_menu')],
     ]
     return InlineKeyboardMarkup(keyboard)
 
 
-def create_schedule_options_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
-    """Выбор количества недель для создания расписания"""
-    keyboard = [
-        [InlineKeyboardButton("📅 1 неделя", callback_data='create_schedule:1')],
-        [InlineKeyboardButton("📅 2 недели", callback_data='create_schedule:2')],
-        [InlineKeyboardButton("📅 4 недели", callback_data='create_schedule:4')],
-        [InlineKeyboardButton("📅 8 недель", callback_data='create_schedule:8')],
-        [InlineKeyboardButton("📅 12 недель (3 месяца)", callback_data='create_schedule:12')],
-        [InlineKeyboardButton(
-            get_text('menu.back', lang),
-            callback_data='admin_menu'
-        )]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-
-def manage_workouts_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
-    """Меню управления тренировками"""
-    keyboard = [
-        [InlineKeyboardButton(
-            "📋 Все тренировки",
-            callback_data='admin_list_workouts'
-        )],
-        [InlineKeyboardButton(
-            "🗑️ Удалить тренировку",
-            callback_data='admin_delete_workout'
-        )],
-        [InlineKeyboardButton(
-            get_text('menu.back', lang),
-            callback_data='admin_menu'
-        )]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-
-def workouts_date_selection_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
-    """Выбор даты для просмотра тренировок"""
-    keyboard = [
-        [InlineKeyboardButton(
-            "Сегодня",
-            callback_data='admin_workouts_date:today'
-        )],
-        [InlineKeyboardButton(
-            "Завтра",
-            callback_data='admin_workouts_date:tomorrow'
-        )],
-        [InlineKeyboardButton(
-            "Эта неделя",
-            callback_data='admin_workouts_date:week'
-        )],
-        [InlineKeyboardButton(
-            get_text('menu.back', lang),
-            callback_data='admin_manage_workouts'
-        )]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-
-def workout_actions_keyboard(
-    workout_id: int,
-    lang: str = 'ru'
-) -> InlineKeyboardMarkup:
-    """Действия с тренировкой для админа"""
-    keyboard = [
-        [InlineKeyboardButton(
-            "👥 Список участников",
-            callback_data=f'admin_workout_participants:{workout_id}'
-        )],
-        [InlineKeyboardButton(
-            "🗑️ Удалить тренировку",
-            callback_data=f'admin_confirm_delete:{workout_id}'
-        )],
-        [InlineKeyboardButton(
-            get_text('menu.back', lang),
-            callback_data='admin_list_workouts'
-        )]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-
-def confirm_delete_keyboard(
-    workout_id: int,
-    lang: str = 'ru'
-) -> InlineKeyboardMarkup:
-    """Подтверждение удаления тренировки"""
-    keyboard = [
-        [InlineKeyboardButton(
-            "✅ Да, удалить",
-            callback_data=f'admin_delete_confirmed:{workout_id}'
-        )],
-        [InlineKeyboardButton(
-            "❌ Отмена",
-            callback_data=f'admin_workout_info:{workout_id}'
-        )]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-
-def manage_users_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
-    """Меню управления пользователями"""
-    keyboard = [
-        [InlineKeyboardButton(
-            "👥 Список всех пользователей",
-            callback_data='admin_list_users'
-        )],
-        [InlineKeyboardButton(
-            "🎓 Назначить тренера",
-            callback_data='admin_promote_trainer'
-        )],
-        [InlineKeyboardButton(
-            get_text('menu.back', lang),
-            callback_data='admin_menu'
-        )]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-
-def users_list_keyboard(
-    users: List[User],
-    lang: str = 'ru'
-) -> InlineKeyboardMarkup:
-    """Список пользователей с действиями"""
+def admin_week_selection_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
+    """Выбор дня недели для просмотра расписания"""
+    today = date.today()
+    day_names = WEEKDAY_NAMES.get(lang, WEEKDAY_NAMES['ru'])
     keyboard = []
-    
-    for user in users[:20]:  # Ограничение в 20 пользователей на страницу
-        role_emoji = {
-            "athlete": "🏋️",
-            "trainer": "🤸‍♀️",
-            "admin": "👑"
-        }.get(user.role.value, "👤")
+    for i in range(7):
+        d = today + timedelta(days=i)
+        label = f"{'📍 ' if i == 0 else ''}{day_names[d.weekday()]} {d.strftime('%d.%m')}"
+        keyboard.append([InlineKeyboardButton(label, callback_data=f'admin_day:{d.isoformat()}')])
+    keyboard.append([InlineKeyboardButton(get_text('menu.back', lang), callback_data='admin_menu')])
+    return InlineKeyboardMarkup(keyboard)
+
+
+def admin_workouts_list_keyboard(workouts: List, period: str, lang: str = 'ru') -> InlineKeyboardMarkup:
+    """Список тренировок (сегодня/завтра)"""
+    keyboard = []
+    for workout in workouts[:20]:
+        occupancy = workout.current_participants / workout.max_participants
+        status = "🔴" if occupancy >= 1.0 else ("🟡" if occupancy >= 0.8 else "🟢")
+        button_text = (
+            f"{status} {format_dt(workout.datetime, '%d.%m %H:%M', lang)} - {workout.name} "
+            f"({workout.current_participants}/{workout.max_participants})"
+        )
+        keyboard.append([InlineKeyboardButton(button_text, callback_data=f'admin_workout_details:{workout.id}:{period}')])
+    keyboard.append([InlineKeyboardButton(get_text('menu.back', lang), callback_data='admin_menu')])
+    return InlineKeyboardMarkup(keyboard)
+
+
+def admin_day_workouts_list_keyboard(workouts: List, day_str: str, lang: str = 'ru') -> InlineKeyboardMarkup:
+    """Список тренировок за конкретный день (из недели)"""
+    keyboard = []
+    for workout in workouts:
+        occupancy = workout.current_participants / workout.max_participants
+        status = "🔴" if occupancy >= 1.0 else ("🟡" if occupancy >= 0.8 else "🟢")
+        button_text = (
+            f"{status} {workout.datetime.strftime('%H:%M')} {workout.name} "
+            f"({workout.current_participants}/{workout.max_participants})"
+        )
+        keyboard.append([InlineKeyboardButton(button_text, callback_data=f'admin_workout_details:{workout.id}:{day_str}')])
+    keyboard.append([InlineKeyboardButton(get_text('admin.back_to_week', lang), callback_data='admin_view_workouts:week')])
+    return InlineKeyboardMarkup(keyboard)
+
+
+def admin_workout_details_keyboard(workout_id: int, source: str, lang: str = 'ru') -> InlineKeyboardMarkup:
+    """Действия с тренировкой (детали)"""
+    if source in ('today', 'tomorrow'):
+        back_callback = f'admin_view_workouts:{source}'
+    else:
+        back_callback = f'admin_day:{source}'
         
-        button_text = f"{role_emoji} {user.full_name} ({user.role.value})"
-        keyboard.append([
-            InlineKeyboardButton(
-                button_text,
-                callback_data=f'admin_user_info:{user.id}'
-            )
-        ])
-    
-    keyboard.append([
-        InlineKeyboardButton(
-            get_text('menu.back', lang),
-            callback_data='admin_manage_users'
-        )
-    ])
-    
+    keyboard = [
+        [
+            InlineKeyboardButton(get_text('admin.assign_trainer', lang), callback_data=f'admin_select_trainer:{workout_id}:{source}'),
+            InlineKeyboardButton(get_text('admin.delete_workout', lang), callback_data=f'admin_delete_workout_confirm:{workout_id}'),
+        ],
+        [InlineKeyboardButton(get_text('menu.back', lang), callback_data=back_callback)]
+    ]
     return InlineKeyboardMarkup(keyboard)
 
 
-def user_actions_keyboard(
-    user_id: int,
-    current_role: str,
-    lang: str = 'ru'
-) -> InlineKeyboardMarkup:
-    """Действия с пользователем"""
+def admin_users_stats_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
+    """Клавиатура для статистики пользователей"""
+    keyboard = [[InlineKeyboardButton(get_text('menu.back', lang), callback_data='admin_menu')]]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def admin_delete_workout_confirm_keyboard(workout_id: int, lang: str = 'ru') -> InlineKeyboardMarkup:
+    """Подтверждение удаления тренировки"""
+    keyboard = [[InlineKeyboardButton(get_text('admin.delete_cancel', lang), callback_data=f'admin_cancel_delete:{workout_id}')]]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def admin_select_trainer_keyboard(trainers: List, workout_id: int, source: str, lang: str = 'ru') -> InlineKeyboardMarkup:
+    """Выбор тренера для назначения"""
+    from src.models import UserRole
     keyboard = []
-    
-    if current_role == "athlete":
+    for t in trainers:
+        role_label = " 👑" if t.role == UserRole.ADMIN else ""
         keyboard.append([
             InlineKeyboardButton(
-                "🎓 Назначить тренером",
-                callback_data=f'admin_set_role:{user_id}:trainer'
+                f"{t.full_name}{role_label}",
+                callback_data=f'admin_assign_trainer:{workout_id}:{t.id}:{source}'
             )
         ])
-    elif current_role == "trainer":
-        keyboard.append([
-            InlineKeyboardButton(
-                "⬇️ Снять роль тренера",
-                callback_data=f'admin_set_role:{user_id}:athlete'
-            )
-        ])
-    
-    keyboard.append([
-        InlineKeyboardButton(
-            get_text('menu.back', lang),
-            callback_data='admin_list_users'
-        )
-    ])
-    
+    keyboard.append([InlineKeyboardButton(get_text('admin.no_trainer_btn', lang), callback_data=f'admin_assign_trainer:{workout_id}:0:{source}')])
+    keyboard.append([InlineKeyboardButton(get_text('menu.back', lang), callback_data=f'admin_workout_details:{workout_id}:{source}')])
     return InlineKeyboardMarkup(keyboard)
 
 
-def back_to_admin_menu_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
-    """Кнопка возврата в админ-меню"""
-    keyboard = [[
-        InlineKeyboardButton(
-            "◀️ В админ-меню",
-            callback_data='admin_menu'
-        )
-    ]]
+def admin_trainer_assigned_keyboard(workout_id: int, source: str, lang: str = 'ru') -> InlineKeyboardMarkup:
+    """Клавиатура после назначения тренера"""
+    keyboard = [[InlineKeyboardButton(get_text('admin.to_workout', lang), callback_data=f'admin_workout_details:{workout_id}:{source}')]]
     return InlineKeyboardMarkup(keyboard)
 
+
+def admin_schedule_image_menu_keyboard(image_exists: bool, lang: str = 'ru') -> InlineKeyboardMarkup:
+    """Меню управления картинкой расписания"""
+    keyboard = [
+        [InlineKeyboardButton(get_text('admin.image_upload_btn', lang), callback_data='admin_upload_schedule_image')],
+    ]
+    if image_exists:
+        keyboard.append([InlineKeyboardButton(get_text('admin.image_delete_btn', lang), callback_data='admin_delete_schedule_image')])
+    keyboard.append([InlineKeyboardButton(get_text('menu.back', lang), callback_data='admin_menu')])
+    return InlineKeyboardMarkup(keyboard)
+
+
+def admin_upload_schedule_image_prompt_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
+    """Отмена загрузки картинки"""
+    keyboard = [
+        [InlineKeyboardButton(get_text('admin.image_cancel', lang), callback_data='admin_schedule_image')]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def admin_delete_schedule_image_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
+    """Возврат после удаления картинки"""
+    keyboard = [
+        [InlineKeyboardButton(get_text('menu.back', lang), callback_data='admin_schedule_image')]
+    ]
+    return InlineKeyboardMarkup(keyboard)

@@ -22,6 +22,7 @@ from src.keyboards.athlete_keyboards import (
     settings_keyboard,
     language_selection_keyboard,
     format_dt,
+    back_to_schedule_keyboard,
 )
 from src.locales import get_text
 from src.models import User, UserRole
@@ -182,16 +183,11 @@ async def show_workout_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         user_str += f" (+{b.guests})"
                     text += f"• {user_str}\n"
 
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-
         is_trainer_or_admin = user and user.has_trainer_permissions()
 
         if is_trainer_or_admin:
             # Тренер/Админ: только просмотр, без кнопок записи
-            keyboard_rows = [
-                [InlineKeyboardButton(get_text('menu.back', lang), callback_data='schedule:back')]
-            ]
-            keyboard = InlineKeyboardMarkup(keyboard_rows)
+            keyboard = back_to_schedule_keyboard(lang)
         else:
             if is_booked:
                 text += "\n<b>" + get_text('schedule.workout_booked', lang) + "</b>"
