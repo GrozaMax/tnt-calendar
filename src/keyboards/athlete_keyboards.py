@@ -45,21 +45,25 @@ def format_dt(dt, fmt: str = '%d.%m.%Y %H:%M', lang: str = 'ru') -> str:
 def main_reply_keyboard(lang: str = 'ru', role: str = 'athlete') -> ReplyKeyboardMarkup:
     """Постоянная нижняя клавиатура (под полем ввода текста), зависит от роли и языка"""
     start_btn = KeyboardButton("/start")
+    settings_btn = KeyboardButton(get_text('menu.settings', lang))
     if role == 'admin':
         keyboard = [
             [KeyboardButton(get_text('reply_kb.trainer_section', lang)),
              KeyboardButton(get_text('reply_kb.admin_panel', lang))],
+            [settings_btn],
             [start_btn],
         ]
     elif role == 'trainer':
         keyboard = [
             [KeyboardButton(get_text('reply_kb.trainer_section', lang))],
+            [settings_btn],
             [start_btn],
         ]
     else:  # athlete
         keyboard = [
             [KeyboardButton(get_text('reply_kb.book_workout', lang))],
             [KeyboardButton(get_text('reply_kb.my_bookings', lang))],
+            [settings_btn],
             [start_btn],
         ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, is_persistent=True)
@@ -77,20 +81,17 @@ def main_menu_keyboard(lang: str = 'ru', is_admin: bool = False, is_trainer: boo
         keyboard = [
             [InlineKeyboardButton(get_text('reply_kb.trainer_section', lang), callback_data='trainer_menu')],
             [InlineKeyboardButton("👑 Админ-панель", callback_data='admin_menu')],
-            [InlineKeyboardButton(get_text('menu.settings', lang), callback_data='settings')],
             [InlineKeyboardButton(get_text('menu.help', lang), callback_data='help')],
         ]
     elif is_trainer:
         keyboard = [
             [InlineKeyboardButton(get_text('reply_kb.trainer_section', lang), callback_data='trainer_menu')],
-            [InlineKeyboardButton(get_text('menu.settings', lang), callback_data='settings')],
             [InlineKeyboardButton(get_text('menu.help', lang), callback_data='help')],
         ]
     else:
         keyboard = [
             [InlineKeyboardButton(get_text('reply_kb.book_workout', lang), callback_data='schedule')],
             [InlineKeyboardButton(get_text('reply_kb.my_bookings', lang), callback_data='my_bookings')],
-            [InlineKeyboardButton(get_text('menu.settings', lang), callback_data='settings')],
             [InlineKeyboardButton(get_text('menu.help', lang), callback_data='help')],
         ]
     return InlineKeyboardMarkup(keyboard)

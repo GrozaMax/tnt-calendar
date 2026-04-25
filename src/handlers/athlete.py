@@ -537,7 +537,12 @@ async def show_settings(
         reminder_minutes=user.reminder_minutes
     )
 
-    await query.edit_message_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    if query:
+        await query.edit_message_text(text, reply_markup=keyboard, parse_mode='Markdown')
+    else:
+        from src.handlers.base import _nav_edit_or_send
+        await _nav_edit_or_send(update, context, text, keyboard, parse_mode='Markdown')
+    context.user_data['current_screen'] = 'settings'
 
 
 async def toggle_notifications(update: Update, context: ContextTypes.DEFAULT_TYPE):
