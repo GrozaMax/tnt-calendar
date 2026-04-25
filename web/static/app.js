@@ -461,14 +461,58 @@ async function clearAllWorkouts() {
 }
 
 // Пользователи
+const USERS_PER_PAGE = 20;
+let usersCurrentOffset = 0;
+let usersCurrentRole = '';
+let usersCurrentSearch = '';
+let _userSearchTimer = null;
+
+function debounceUserSearch() {
+    clearTimeout(_userSearchTimer);
+    _userSearchTimer = setTimeout(() => {
+        usersCurrentSearch = document.getElementById('userSearchInput').value.trim();
+        usersCurrentOffset = 0;
+        loadUsers();
+    }, 350);
+}
+
+function filterUsersByRole(role) {
+    usersCurrentRole = role;
+    usersCurrentOffset = 0;
+    
+    // Подсветка активной кнопки
+    ['filterAll', 'filterAthlete', 'filterTrainer', 'filterAdmin'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.style.fontWeight = '';
+        btn.className = 'btn btn-sm btn-secondary';
+    });
+    const activeMap = { '': 'filterAll', 'athlete': 'filterAthlete', 'trainer': 'filterTrainer', 'admin': 'filterAdmin' };
+    const activeBtn = document.getElementById(activeMap[role]);
+    if (activeBtn) {
+        activeBtn.style.fontWeight = '700';
+        activeBtn.className = 'btn btn-sm btn-primary';
+    }
+    
+    loadUsers();
+}
+
 async function loadUsers() {
     if (currentUser.role !== 'admin') {
         return;
     }
     
     try {
-        const users = await apiRequest('/users/');
-        displayUsers(users);
+        const params = new URLSearchParams({
+            limit: USERS_PER_PAGE,
+            offset: usersCurrentOffset,
+        });
+        if (usersCurrentRole) params.set('role', usersCurrentRole);
+        if (usersCurrentSearch) params.set('search', usersCurrentSearch);
+        
+        const data = await apiRequest(`/users/?${params}`);
+        displayUsers(data.users);
+        displayUsersPagination(data.total, data.limit, data.offset);
         
         const stats = await apiRequest('/users/stats/summary');
         displayUserStats(stats);
@@ -480,6 +524,11 @@ async function loadUsers() {
 function displayUsers(users) {
     const tbody = document.getElementById('usersTableBody');
     tbody.innerHTML = '';
+    
+    if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#999;">Пользователей не найдено</td></tr>';
+        return;
+    }
     
     users.forEach(user => {
         const tr = document.createElement('tr');
@@ -510,6 +559,52 @@ function displayUsers(users) {
         tbody.appendChild(tr);
     });
 }
+
+function displayUsersPagination(total, limit, offset) {
+    const container = document.getElementById('usersPagination');
+    if (!container) return;
+    
+    const totalPages = Math.ceil(total / limit);
+    const currentPage = Math.floor(offset / limit) + 1;
+    
+    if (totalPages <= 1) {
+        container.innerHTML = `<span style="color:#999; font-size:13px;">Всего: ${total}</span>`;
+        return;
+    }
+    
+    let html = '';
+    html += `<button class="btn btn-sm btn-secondary" ${currentPage <= 1 ? 'disabled' : ''} onclick="usersGoToPage(${currentPage - 1})">◀</button>`;
+    
+    const maxButtons = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+    let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+    if (endPage - startPage < maxButtons - 1) {
+        startPage = Math.max(1, endPage - maxButtons + 1);
+    }
+    
+    if (startPage > 1) html += `<button class="btn btn-sm btn-secondary" onclick="usersGoToPage(1)">1</button><span>…</span>`;
+    
+    for (let p = startPage; p <= endPage; p++) {
+        if (p === currentPage) {
+            html += `<button class="btn btn-sm btn-primary" disabled>${p}</button>`;
+        } else {
+            html += `<button class="btn btn-sm btn-secondary" onclick="usersGoToPage(${p})">${p}</button>`;
+        }
+    }
+    
+    if (endPage < totalPages) html += `<span>…</span><button class="btn btn-sm btn-secondary" onclick="usersGoToPage(${totalPages})">${totalPages}</button>`;
+    
+    html += `<button class="btn btn-sm btn-secondary" ${currentPage >= totalPages ? 'disabled' : ''} onclick="usersGoToPage(${currentPage + 1})">▶</button>`;
+    html += `<span style="color:#999; font-size:13px; margin-left:8px;">(${total})</span>`;
+    
+    container.innerHTML = html;
+}
+
+function usersGoToPage(page) {
+    usersCurrentOffset = (page - 1) * USERS_PER_PAGE;
+    loadUsers();
+}
+
 
 function displayUserStats(stats) {
     const container = document.getElementById('userStats');
@@ -908,9 +1003,9 @@ async function deleteScheduleImage() {
 async function loadTrainers() {
     if (currentUser.role !== 'admin') return;
     try {
-        const trainers = await apiRequest('/users/?role=trainer');
-        const admins = await apiRequest('/users/?role=admin');
-        trainersList = [...admins, ...trainers];
+        const trainersData = await apiRequest('/users/?role=trainer&limit=100');
+        const adminsData = await apiRequest('/users/?role=admin&limit=100');
+        trainersList = [...adminsData.users, ...trainersData.users];
         populateTrainerSelects();
     } catch (e) {
         console.warn('Не удалось загрузить список тренеров:', e.message);

@@ -41,15 +41,16 @@ class SetPasswordRequest(BaseModel):
     password: str = Field(..., min_length=4, max_length=128)
 
 
-@router.get("/", response_model=List[UserResponse])
+@router.get("/")
 async def get_users(
     role: Optional[str] = Query(None, pattern="^(athlete|trainer|admin)$"),
+    search: Optional[str] = Query(None, max_length=100),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     user: User = Depends(get_current_user)
 ):
     """
-    Получить список пользователей
+    Получить список пользователей с пагинацией
     
     Только для админов.
     """
@@ -59,35 +60,57 @@ async def get_users(
             detail="Only admins can view users list"
         )
     
+    from sqlalchemy import func, or_
+
     async with get_session() as session:
-        # Строим запрос
-        query = select(User).order_by(User.created_at.desc())
+        # Базовый запрос
+        base_query = select(User)
         
         # Фильтр по роли
         if role:
-            query = query.where(User.role == UserRole(role))
+            base_query = base_query.where(User.role == UserRole(role))
+        
+        # Поиск по имени/username
+        if search:
+            pattern = f"%{search}%"
+            base_query = base_query.where(
+                or_(
+                    User.first_name.ilike(pattern),
+                    User.last_name.ilike(pattern),
+                    User.username.ilike(pattern),
+                )
+            )
+        
+        # Считаем общее количество (до пагинации)
+        count_query = select(func.count()).select_from(base_query.subquery())
+        total = (await session.execute(count_query)).scalar()
         
         # Пагинация
-        query = query.limit(limit).offset(offset)
+        query = base_query.order_by(User.created_at.desc()).limit(limit).offset(offset)
         
         result = await session.execute(query)
         users = list(result.scalars().all())
         
-        return [
-            UserResponse(
-                id=u.id,
-                telegram_id=u.telegram_id,
-                username=u.username,
-                first_name=u.first_name,
-                last_name=u.last_name,
-                full_name=u.full_name,
-                role=u.role.value,
-                language=u.language,
-                has_web_password=u.has_web_password,
-                created_at=u.created_at.isoformat()
-            )
-            for u in users
-        ]
+        return {
+            "users": [
+                UserResponse(
+                    id=u.id,
+                    telegram_id=u.telegram_id,
+                    username=u.username,
+                    first_name=u.first_name,
+                    last_name=u.last_name,
+                    full_name=u.full_name,
+                    role=u.role.value,
+                    language=u.language,
+                    has_web_password=u.has_web_password,
+                    created_at=u.created_at.isoformat()
+                )
+                for u in users
+            ],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+        }
 
 
 @router.get("/{user_id}", response_model=UserResponse)
