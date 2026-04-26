@@ -64,7 +64,7 @@
     "toggled_off": "✅ Notifications disabled",
     "btn_reminder_time": "⏰ Reminder: {minutes} min",
     "select_language": "🌐 Select Language",
-    "current_language": "Current language: {lang}"
+    "current_language": "Current language: {language}"
   },
   "common": {
     "welcome": "👋 Hello, {name}!\n\nI'm the CrossFit Hub bot — workouts and schedule.\n\n📝 Up to *{max_per_day}* active bookings per calendar day (set by your gym admin).\n📅 Schedule shows the next 7 days; today's past sessions are hidden.\n\nChoose an action below:",

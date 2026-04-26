@@ -64,7 +64,7 @@
     "toggled_off": "✅ Benachrichtigungen ausgeschaltet",
     "btn_reminder_time": "⏰ Erinnerung: {minutes} Min",
     "select_language": "🌐 Sprache wählen",
-    "current_language": "Aktuelle Sprache: {lang}"
+    "current_language": "Aktuelle Sprache: {language}"
   },
   "common": {
     "welcome": "👋 Hallo, {name}!\n\nIch bin der CrossFit Hub Bot — Buchungen und Zeitplan.\n\n📝 Bis zu *{max_per_day}* aktive Buchungen pro Kalendertag (Limit setzt der Admin).\n📅 Zeitplan: nächste 7 Tage; vergangene Sessions heute werden ausgeblendet.\n\nWählen Sie unten eine Aktion:",
