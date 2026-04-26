@@ -1,5 +1,9 @@
 Hey, Athletes!
 
-✅ <b>Fixed Schedule Image Placement</b>
+⏰ <b>Workout Reminders</b>
 
-Fixed a bug where the schedule image would remain at the bottom of the chat. 📸
+You will now receive automatic reminders before your scheduled workouts!
+- By default, you'll be reminded 60 minutes before the start time.
+- You can customize this time (30, 60, 90, or 120 minutes) right in your ⚙️ <b>Settings</b>.
+- Reminders will respect your global notification preferences.
+- The <b>Settings</b> button has also been moved to the main menu for easier access!

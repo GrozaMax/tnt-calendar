@@ -45,21 +45,25 @@ def format_dt(dt, fmt: str = '%d.%m.%Y %H:%M', lang: str = 'ru') -> str:
 def main_reply_keyboard(lang: str = 'ru', role: str = 'athlete') -> ReplyKeyboardMarkup:
     """Постоянная нижняя клавиатура (под полем ввода текста), зависит от роли и языка"""
     start_btn = KeyboardButton("/start")
+    settings_btn = KeyboardButton(get_text('menu.settings', lang))
     if role == 'admin':
         keyboard = [
             [KeyboardButton(get_text('reply_kb.trainer_section', lang)),
              KeyboardButton(get_text('reply_kb.admin_panel', lang))],
+            [settings_btn],
             [start_btn],
         ]
     elif role == 'trainer':
         keyboard = [
             [KeyboardButton(get_text('reply_kb.trainer_section', lang))],
+            [settings_btn],
             [start_btn],
         ]
     else:  # athlete
         keyboard = [
             [KeyboardButton(get_text('reply_kb.book_workout', lang))],
             [KeyboardButton(get_text('reply_kb.my_bookings', lang))],
+            [settings_btn],
             [start_btn],
         ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, is_persistent=True)
@@ -77,20 +81,17 @@ def main_menu_keyboard(lang: str = 'ru', is_admin: bool = False, is_trainer: boo
         keyboard = [
             [InlineKeyboardButton(get_text('reply_kb.trainer_section', lang), callback_data='trainer_menu')],
             [InlineKeyboardButton("👑 Админ-панель", callback_data='admin_menu')],
-            [InlineKeyboardButton(get_text('menu.settings', lang), callback_data='settings')],
             [InlineKeyboardButton(get_text('menu.help', lang), callback_data='help')],
         ]
     elif is_trainer:
         keyboard = [
             [InlineKeyboardButton(get_text('reply_kb.trainer_section', lang), callback_data='trainer_menu')],
-            [InlineKeyboardButton(get_text('menu.settings', lang), callback_data='settings')],
             [InlineKeyboardButton(get_text('menu.help', lang), callback_data='help')],
         ]
     else:
         keyboard = [
             [InlineKeyboardButton(get_text('reply_kb.book_workout', lang), callback_data='schedule')],
             [InlineKeyboardButton(get_text('reply_kb.my_bookings', lang), callback_data='my_bookings')],
-            [InlineKeyboardButton(get_text('menu.settings', lang), callback_data='settings')],
             [InlineKeyboardButton(get_text('menu.help', lang), callback_data='help')],
         ]
     return InlineKeyboardMarkup(keyboard)
@@ -272,18 +273,30 @@ def back_to_main_menu_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def settings_keyboard(lang: str = 'ru', notifications_enabled: bool = True) -> InlineKeyboardMarkup:
+def settings_keyboard(lang: str = 'ru', notifications_enabled: bool = True, reminder_minutes: int = 60) -> InlineKeyboardMarkup:
     """Меню настроек"""
     notif_btn = (
         get_text('settings.btn_disable_notifications', lang)
         if notifications_enabled
         else get_text('settings.btn_enable_notifications', lang)
     )
+    
+    remind_text = f"⏰ Напоминание: {reminder_minutes} мин" if lang == 'ru' else f"⏰ Reminder: {reminder_minutes} min"
+    
     keyboard = [
         [InlineKeyboardButton(
             notif_btn,
             callback_data='toggle_notifications'
-        )],
+        )]
+    ]
+    
+    if notifications_enabled:
+        keyboard.append([InlineKeyboardButton(
+            remind_text,
+            callback_data='toggle_reminder_time'
+        )])
+        
+    keyboard.extend([
         [InlineKeyboardButton(
             "🌐 Язык / Language",
             callback_data='change_language'
@@ -292,7 +305,7 @@ def settings_keyboard(lang: str = 'ru', notifications_enabled: bool = True) -> I
             get_text('menu.back', lang),
             callback_data='main_menu'
         )]
-    ]
+    ])
     return InlineKeyboardMarkup(keyboard)
 
 

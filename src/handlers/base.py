@@ -12,6 +12,7 @@ from src.keyboards.athlete_keyboards import (
     my_bookings_keyboard, back_to_main_menu_keyboard,
     REPLY_BOOK_WORKOUT_TEXTS, REPLY_MY_BOOKINGS_TEXTS,
     REPLY_TRAINER_SECTION_TEXTS, REPLY_ADMIN_PANEL_TEXTS,
+    REPLY_SETTINGS_TEXTS,
 )
 from src.keyboards.trainer_keyboards import trainer_section_keyboard
 from src.locales import get_text
@@ -73,7 +74,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     user = context.user_data.get('current_user')
     lang = user.language if user else 'ru'
 
-    _ALL_NAV = REPLY_BOOK_WORKOUT_TEXTS | REPLY_MY_BOOKINGS_TEXTS | REPLY_TRAINER_SECTION_TEXTS | REPLY_ADMIN_PANEL_TEXTS
+    _ALL_NAV = REPLY_BOOK_WORKOUT_TEXTS | REPLY_MY_BOOKINGS_TEXTS | REPLY_TRAINER_SECTION_TEXTS | REPLY_ADMIN_PANEL_TEXTS | REPLY_SETTINGS_TEXTS
 
     # Если это нажатие кнопки нижней панели — удаляем сообщение пользователя
     if text in _ALL_NAV:
@@ -127,6 +128,10 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         admin_text, admin_kb = _build_admin_menu_content(lang)
         await _nav_edit_or_send(update, context, admin_text, admin_kb, parse_mode='Markdown')
         context.user_data['current_screen'] = 'admin_menu'
+
+    elif text in REPLY_SETTINGS_TEXTS:
+        from src.handlers.athlete import show_settings
+        await show_settings(update, context, skip_answer=True)
 
     elif context.user_data.get('pending_delete_workout_id'):
         # Режим ввода причины удаления тренировки (для администратора)

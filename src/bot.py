@@ -36,6 +36,7 @@ from src.handlers.athlete import (
     set_language,
     show_schedule_image,
     toggle_notifications,
+    toggle_reminder_time,
 )
 from src.handlers.admin import (
     show_admin_menu,
@@ -60,6 +61,7 @@ from src.handlers.trainer import (
     show_free_slots,
     assign_trainer_to_workout
 )
+from src.services.notification_service import check_workout_reminders
 from src.utils.decorators import ensure_user_exists
 
 
@@ -195,6 +197,12 @@ class TelegramBot:
             CallbackQueryHandler(
                 self._wrap_with_user_check(toggle_notifications),
                 pattern='^toggle_notifications$'
+            )
+        )
+        self.application.add_handler(
+            CallbackQueryHandler(
+                self._wrap_with_user_check(toggle_reminder_time),
+                pattern='^toggle_reminder_time$'
             )
         )
         
@@ -380,6 +388,12 @@ class TelegramBot:
         logger.info("Инициализация базы данных...")
         await init_db()
         logger.info("База данных инициализирована")
+        
+        # Запускаем джоб напоминаний (каждые 5 минут)
+        job_queue = application.job_queue
+        if job_queue:
+            job_queue.run_repeating(check_workout_reminders, interval=300, first=10)
+            logger.info("Джоб отправки напоминаний запущен")
     
     def run(self):
         """Запуск бота"""

@@ -56,6 +56,11 @@ class User(Base, TimestampMixin):
         nullable=True,
         default=None,
     )
+    reminder_minutes: Mapped[int] = mapped_column(
+        Integer,
+        default=60,
+        nullable=False,
+    )
 
     # ── Password helpers (hashlib, no external deps) ──────────────
     @staticmethod

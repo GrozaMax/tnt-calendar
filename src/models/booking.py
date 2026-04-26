@@ -3,7 +3,7 @@
 """
 import enum
 from typing import TYPE_CHECKING
-from sqlalchemy import String, Integer, ForeignKey, Enum, UniqueConstraint
+from sqlalchemy import String, Integer, ForeignKey, Enum, UniqueConstraint, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.base import Base, TimestampMixin
@@ -46,6 +46,11 @@ class Booking(Base, TimestampMixin):
         nullable=False
     )
     guests: Mapped[int] = mapped_column(Integer, default=0)
+    reminder_sent: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False
+    )
     
     
     # Relationships
