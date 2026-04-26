@@ -55,7 +55,7 @@ def trainer_free_slots_keyboard(workouts: List, lang: str = 'ru') -> InlineKeybo
 def trainer_assigned_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
     """Клавиатура после назначения себя на тренировку"""
     keyboard = [
-        [InlineKeyboardButton("📋 Свободные слоты", callback_data='trainer_free_slots')],
+        [InlineKeyboardButton(get_text('trainer.free_slots_btn', lang), callback_data='trainer_free_slots')],
         [InlineKeyboardButton(get_text('menu.back', lang), callback_data='trainer_menu')],
     ]
     return InlineKeyboardMarkup(keyboard)

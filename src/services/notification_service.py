@@ -101,8 +101,9 @@ async def notify_athlete_workout_reminder(bot: Bot, athlete_telegram_id: int,
                                           workout_name: str, workout_datetime: str,
                                           athlete_lang: str = 'ru') -> None:
     """Уведомить атлета о предстоящей тренировке"""
-    title = "Напоминание о тренировке" if athlete_lang == 'ru' else "Workout Reminder"
-    body = f"Тренировка *{workout_name}* начнется в {workout_datetime}" if athlete_lang == 'ru' else f"Workout *{workout_name}* will start at {workout_datetime}"
+    title = get_text('notifications.workout_reminder_title', athlete_lang)
+    body = get_text('notifications.workout_reminder_body', athlete_lang,
+                    name=workout_name, datetime=workout_datetime)
     try:
         await bot.send_message(chat_id=athlete_telegram_id, text=f"*{title}*\n\n{body}", parse_mode='Markdown')
     except TelegramError as e:

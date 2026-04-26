@@ -45,7 +45,8 @@
     "not_your_workout": "❌ Das ist nicht Ihr Training",
     "past_workout": "❌ Ein vergangenes Training kann nicht gebucht werden",
     "limit_exceeded": "❌ *Buchungslimit überschritten!*\n\nSie sind bereits für {max} Trainings an diesem Tag angemeldet.\n\nVersuchen Sie es an einem anderen Tag oder stornieren Sie eine aktuelle Buchung.",
-    "no_free_slots": "❌ *Keine Plätze verfügbar!*\n\nDieses Training hat bereits {max} Teilnehmer (Maximum).\n\nVersuchen Sie eine andere Zeit oder achten Sie auf Stornierungen."
+    "no_free_slots": "❌ *Keine Plätze verfügbar!*\n\nDieses Training hat bereits {max} Teilnehmer (Maximum).\n\nVersuchen Sie eine andere Zeit oder achten Sie auf Stornierungen.",
+    "guests_count": "👥 Gäste: {count}"
   },
   "my_bookings": {
     "title": "📋 Meine Buchungen",
@@ -60,7 +61,10 @@
     "btn_disable_notifications": "🔕 Benachrichtigungen aus",
     "btn_enable_notifications": "🔔 Benachrichtigungen an",
     "toggled_on": "✅ Benachrichtigungen eingeschaltet",
-    "toggled_off": "✅ Benachrichtigungen ausgeschaltet"
+    "toggled_off": "✅ Benachrichtigungen ausgeschaltet",
+    "btn_reminder_time": "⏰ Erinnerung: {minutes} Min",
+    "select_language": "🌐 Sprache wählen",
+    "current_language": "Aktuelle Sprache: {lang}"
   },
   "common": {
     "welcome": "👋 Hallo, {name}!\n\nIch bin der CrossFit Hub Bot — Buchungen und Zeitplan.\n\n📝 Bis zu *{max_per_day}* aktive Buchungen pro Kalendertag (Limit setzt der Admin).\n📅 Zeitplan: nächste 7 Tage; vergangene Sessions heute werden ausgeblendet.\n\nWählen Sie unten eine Aktion:",
@@ -71,7 +75,8 @@
     "error": "❌ Ein Fehler ist aufgetreten. Versuchen Sie es später erneut.",
     "user_not_found": "❌ Benutzer nicht gefunden. Verwenden Sie /start zur Registrierung.",
     "athlete": "Athlet",
-    "error_processing": "❌ Bei der Verarbeitung Ihrer Anfrage ist ein Fehler aufgetreten. Bitte versuchen Sie es später erneut."
+    "error_processing": "❌ Bei der Verarbeitung Ihrer Anfrage ist ein Fehler aufgetreten. Bitte versuchen Sie es später erneut.",
+    "back_back": "◀️ Zurück"
   },
   "reply_kb": {
     "book_workout": "📝 Training buchen",
@@ -92,7 +97,9 @@
     "booking_cancelled_title": "🚫 Buchung storniert",
     "booking_cancelled_body": "Athlet: *{athlete}*\nTraining: *{workout}*\nDatum/Zeit: *{datetime}*",
     "removed_by_trainer_title": "🚫 Vom Training entfernt",
-    "removed_by_trainer_body": "Der Trainer hat Sie vom Training *{name}* {datetime} entfernt."
+    "removed_by_trainer_body": "Der Trainer hat Sie vom Training *{name}* {datetime} entfernt.",
+    "workout_reminder_title": "🔔 Erinnerung an das Training",
+    "workout_reminder_body": "Das Training *{name}* beginnt um {datetime}."
   },
   "admin": {
     "menu": "👑 Admin-Menü",

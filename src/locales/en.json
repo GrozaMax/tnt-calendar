@@ -45,7 +45,8 @@
     "not_your_workout": "❌ This is not your workout",
     "past_workout": "❌ Cannot book a workout in the past",
     "limit_exceeded": "❌ *Booking limit exceeded!*\n\nYou are already booked for {max} workouts on this day.\n\nTry booking on a different day or cancel one of your current bookings.",
-    "no_free_slots": "❌ *No slots available!*\n\nThis workout already has {max} participants (maximum).\n\nTry a different time or watch for cancellations."
+    "no_free_slots": "❌ *No slots available!*\n\nThis workout already has {max} participants (maximum).\n\nTry a different time or watch for cancellations.",
+    "guests_count": "👥 Guests: {count}"
   },
   "my_bookings": {
     "title": "📋 My Bookings",
@@ -60,7 +61,10 @@
     "btn_disable_notifications": "🔕 Turn off notifications",
     "btn_enable_notifications": "🔔 Turn on notifications",
     "toggled_on": "✅ Notifications enabled",
-    "toggled_off": "✅ Notifications disabled"
+    "toggled_off": "✅ Notifications disabled",
+    "btn_reminder_time": "⏰ Reminder: {minutes} min",
+    "select_language": "🌐 Select Language",
+    "current_language": "Current language: {lang}"
   },
   "common": {
     "welcome": "👋 Hello, {name}!\n\nI'm the CrossFit Hub bot — workouts and schedule.\n\n📝 Up to *{max_per_day}* active bookings per calendar day (set by your gym admin).\n📅 Schedule shows the next 7 days; today's past sessions are hidden.\n\nChoose an action below:",
@@ -71,7 +75,8 @@
     "error": "❌ An error occurred. Try again later.",
     "user_not_found": "❌ User not found. Use /start to register.",
     "athlete": "Athlete",
-    "error_processing": "❌ An error occurred while processing your request. Please try again later."
+    "error_processing": "❌ An error occurred while processing your request. Please try again later.",
+    "back_back": "◀️ Back"
   },
   "reply_kb": {
     "book_workout": "📝 Sign Up for a Workout",
@@ -92,7 +97,9 @@
     "booking_cancelled_title": "🚫 Booking Cancelled",
     "booking_cancelled_body": "Athlete: *{athlete}*\nWorkout: *{workout}*\nDate/Time: *{datetime}*",
     "removed_by_trainer_title": "🚫 Removed from Workout",
-    "removed_by_trainer_body": "The trainer has removed you from workout *{name}* {datetime}."
+    "removed_by_trainer_body": "The trainer has removed you from workout *{name}* {datetime}.",
+    "workout_reminder_title": "🔔 Workout Reminder",
+    "workout_reminder_body": "Workout *{name}* will start at {datetime}."
   },
   "admin": {
     "menu": "👑 Admin Menu",

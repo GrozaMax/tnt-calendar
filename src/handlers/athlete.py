@@ -241,7 +241,7 @@ async def book_workout(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 lang,
                 name=workout.name,
                 datetime=format_dt(workout.datetime, '%d.%m.%Y %H:%M', lang),
-                trainer=workout.trainer.full_name if workout.trainer else 'Не назначен'
+                trainer=workout.trainer.full_name if workout.trainer else get_text('schedule.no_trainer', lang)
             )
 
             await query.answer(get_text('booking.success', lang)[:200], show_alert=True)
@@ -406,7 +406,7 @@ async def show_booking_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
             status=get_text('booking.status_active', lang) if booking.is_active else get_text('booking.status_cancelled', lang)
         )
         if booking.guests > 0:
-            text += f"\n👥 Гостей: {booking.guests}"
+            text += f"\n" + get_text('booking.guests_count', lang, count=booking.guests)
 
         # Явно загружаем список участников тренировки
         from src.models import BookingStatus
@@ -620,8 +620,8 @@ async def show_language_selection(update: Update, context: ContextTypes.DEFAULT_
         'ge': '🇬🇪 ქართული'
     }
     
-    text = f"🌐 Выберите язык / Choose language\n\n"
-    text += f"Текущий язык / Current: {lang_names.get(current_lang, 'Русский')}"
+    text = get_text('settings.select_language', current_lang) + "\n\n"
+    text += get_text('settings.current_language', current_lang, lang=lang_names.get(current_lang, lang_names['ru']))
     
     keyboard = language_selection_keyboard()
     
