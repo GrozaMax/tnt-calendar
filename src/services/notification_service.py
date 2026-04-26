@@ -159,9 +159,15 @@ async def check_workout_reminders(context: ContextTypes.DEFAULT_TYPE) -> None:
                 f"reminder_minutes={user.reminder_minutes}"
             )
 
-            # Если время до тренировки меньше или равно настройке напоминания
-            # и тренировка еще не прошла
-            if 0 < minutes_left <= user.reminder_minutes:
+            # Тренировка уже прошла — молча помечаем как отправленное
+            if minutes_left <= 0:
+                booking.reminder_sent = True
+                sent_count += 1
+                logger.info(f"[reminders] ⏭ Тренировка уже прошла, помечаю как отправленное: booking#{booking.id} ({workout.name})")
+                continue
+
+            # Если время до тренировки меньше или равно настройке напоминания — отправляем
+            if minutes_left <= user.reminder_minutes:
                 time_str = workout.datetime.strftime('%H:%M')
                 await notify_athlete_workout_reminder(
                     bot=context.bot,
@@ -178,5 +184,5 @@ async def check_workout_reminders(context: ContextTypes.DEFAULT_TYPE) -> None:
         
         if sent_count > 0:
             await session.commit()
-            logger.info(f"[reminders] Отправлено напоминаний: {sent_count}")
+            logger.info(f"[reminders] Обработано: {sent_count}")
 
