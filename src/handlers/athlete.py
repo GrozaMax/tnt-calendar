@@ -623,7 +623,7 @@ async def show_language_selection(update: Update, context: ContextTypes.DEFAULT_
     text = get_text('settings.select_language', current_lang) + "\n\n"
     text += get_text('settings.current_language', current_lang, language=lang_names.get(current_lang, lang_names['ru']))
     
-    keyboard = language_selection_keyboard()
+    keyboard = language_selection_keyboard(current_lang)
     
     await query.edit_message_text(text, reply_markup=keyboard)
 

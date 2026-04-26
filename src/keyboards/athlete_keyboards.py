@@ -309,7 +309,7 @@ def settings_keyboard(lang: str = 'ru', notifications_enabled: bool = True, remi
     return InlineKeyboardMarkup(keyboard)
 
 
-def language_selection_keyboard() -> InlineKeyboardMarkup:
+def language_selection_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
     """Клавиатура выбора языка"""
     keyboard = [
         [InlineKeyboardButton("🇬🇪 ქართული", callback_data='set_lang:ge')],
