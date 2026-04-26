@@ -65,16 +65,9 @@ def main_reply_keyboard(lang: str = 'ru', role: str = 'athlete') -> ReplyKeyboar
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, is_persistent=True)
 
 
-def trainer_section_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
-    """Инлайн-меню 'Тренерская': обзор расписания, мои тренировки, слоты"""
-    keyboard = [
-        [InlineKeyboardButton(get_text('trainer.schedule_overview', lang), callback_data='schedule')],
-        [InlineKeyboardButton(get_text('trainer.my_workouts_btn', lang), callback_data='trainer_workouts:week')],
-        [InlineKeyboardButton(get_text('trainer.free_slots_btn', lang), callback_data='trainer_free_slots')],
-        [InlineKeyboardButton(get_text('menu.back', lang), callback_data='main_menu')],
-    ]
-
-
+def back_to_schedule_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
+    """Простая кнопка Назад к расписанию"""
+    keyboard = [[InlineKeyboardButton(get_text('menu.back', lang), callback_data='schedule:back')]]
     return InlineKeyboardMarkup(keyboard)
 
 

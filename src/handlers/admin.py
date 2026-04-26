@@ -12,6 +12,20 @@ from src.locales import get_text
 from src.models import User, UserRole, BookingStatus
 from src.services.notification_service import notify_athlete_workout_cancelled
 from src.utils.decorators import role_required
+from src.keyboards.admin_keyboards import (
+    admin_main_menu_keyboard,
+    admin_week_selection_keyboard,
+    admin_workouts_list_keyboard,
+    admin_day_workouts_list_keyboard,
+    admin_workout_details_keyboard,
+    admin_users_stats_keyboard,
+    admin_delete_workout_confirm_keyboard,
+    admin_select_trainer_keyboard,
+    admin_trainer_assigned_keyboard,
+    admin_schedule_image_menu_keyboard,
+    admin_upload_schedule_image_prompt_keyboard,
+    admin_delete_schedule_image_keyboard
+)
 
 
 def _build_admin_menu_content(lang: str = 'ru'):
@@ -20,14 +34,7 @@ def _build_admin_menu_content(lang: str = 'ru'):
         f"{get_text('admin.panel_title', lang)}\n\n"
         f"{get_text('admin.panel_desc', lang)}"
     )
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton(get_text('admin.schedule_today', lang), callback_data='admin_view_workouts:today')],
-        [InlineKeyboardButton(get_text('admin.schedule_tomorrow', lang), callback_data='admin_view_workouts:tomorrow')],
-        [InlineKeyboardButton(get_text('admin.schedule_week', lang), callback_data='admin_view_workouts:week')],
-        [InlineKeyboardButton(get_text('admin.users_stats', lang), callback_data='admin_users_stats')],
-        [InlineKeyboardButton(get_text('admin.schedule_image', lang), callback_data='admin_schedule_image')],
-        [InlineKeyboardButton(get_text('menu.back', lang), callback_data='main_menu')],
-    ])
+    keyboard = admin_main_menu_keyboard(lang)
     return text, keyboard
 
 
@@ -63,51 +70,31 @@ async def show_admin_workouts(update: Update, context: ContextTypes.DEFAULT_TYPE
         date_end = target_date
         title = get_text('schedule.tomorrow', lang)
     else:  # week — показываем выбор дня
-        from src.keyboards.athlete_keyboards import WEEKDAY_NAMES
-        today = date.today()
-        day_names = WEEKDAY_NAMES.get(lang, WEEKDAY_NAMES['ru'])
         text = get_text('admin.week_select_day', lang)
-        keyboard = []
-        for i in range(7):
-            d = today + timedelta(days=i)
-            label = f"{'📍 ' if i == 0 else ''}{day_names[d.weekday()]} {d.strftime('%d.%m')}"
-            keyboard.append([InlineKeyboardButton(label, callback_data=f'admin_day:{d.isoformat()}')])
-        keyboard.append([InlineKeyboardButton(get_text('menu.back', lang), callback_data='admin_menu')])
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        keyboard = admin_week_selection_keyboard(lang)
+        await query.edit_message_text(text, reply_markup=keyboard, parse_mode='Markdown')
         return
 
     async with get_session() as session:
         workout_repo = WorkoutRepository(session)
         workouts = await workout_repo.get_by_date_range(target_date, date_end)
 
-    back_btn = [[InlineKeyboardButton(get_text('menu.back', lang), callback_data='admin_menu')]]
-
     if not workouts:
+        keyboard = admin_workouts_list_keyboard([], period, lang)
         await query.edit_message_text(
             f"📅 *{title}*\n\n{get_text('admin.no_workouts_found', lang)}",
-            reply_markup=InlineKeyboardMarkup(back_btn),
+            reply_markup=keyboard,
             parse_mode='Markdown'
         )
         return
 
     text = get_text('admin.schedule_title', lang, title=title, count=len(workouts)) + "\n\n"
-    keyboard = []
-
-    for workout in workouts[:20]:
-        occupancy = workout.current_participants / workout.max_participants
-        status = "🔴" if occupancy >= 1.0 else ("🟡" if occupancy >= 0.8 else "🟢")
-        button_text = (
-            f"{status} {format_dt(workout.datetime, '%d.%m %H:%M', lang)} - {workout.name} "
-            f"({workout.current_participants}/{workout.max_participants})"
-        )
-        keyboard.append([InlineKeyboardButton(button_text, callback_data=f'admin_workout_details:{workout.id}:{period}')])
-
     if len(workouts) > 20:
         text += get_text('admin.shown_first', lang, count=len(workouts)) + "\n"
 
-    keyboard += back_btn
+    keyboard = admin_workouts_list_keyboard(workouts, period, lang)
 
-    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    await query.edit_message_text(text, reply_markup=keyboard, parse_mode='Markdown')
 
 
 @role_required(UserRole.ADMIN)
@@ -127,29 +114,19 @@ async def show_admin_day_workouts(update: Update, context: ContextTypes.DEFAULT_
         workouts = await workout_repo.get_by_date_range(target_date, target_date)
 
     day_label = format_dt(target_date, '%d.%m.%Y', lang)
-    back_btn = [[InlineKeyboardButton(get_text('admin.back_to_week', lang), callback_data='admin_view_workouts:week')]]
-
+    
     if not workouts:
+        keyboard = admin_day_workouts_list_keyboard([], day_str, lang)
         await query.edit_message_text(
             f"📅 *{day_label}*\n\n{get_text('admin.no_workouts_day', lang)}",
-            reply_markup=InlineKeyboardMarkup(back_btn),
+            reply_markup=keyboard,
             parse_mode='Markdown'
         )
         return
 
     text = f"📅 *{day_label}* — {get_text('admin.workouts_count', lang, count=len(workouts))}\n\n"
-    keyboard = []
-    for workout in workouts:
-        occupancy = workout.current_participants / workout.max_participants
-        status = "🔴" if occupancy >= 1.0 else ("🟡" if occupancy >= 0.8 else "🟢")
-        button_text = (
-            f"{status} {workout.datetime.strftime('%H:%M')} {workout.name} "
-            f"({workout.current_participants}/{workout.max_participants})"
-        )
-        keyboard.append([InlineKeyboardButton(button_text, callback_data=f'admin_workout_details:{workout.id}:{day_str}')])
-
-    keyboard += back_btn
-    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    keyboard = admin_day_workouts_list_keyboard(workouts, day_str, lang)
+    await query.edit_message_text(text, reply_markup=keyboard, parse_mode='Markdown')
 
 
 @role_required(UserRole.ADMIN)
@@ -213,17 +190,11 @@ async def show_workout_details(update: Update, context: ContextTypes.DEFAULT_TYP
         else:
             text += f"\n{get_text('admin.no_participants', lang)}"
         
-        keyboard = [
-            [
-                InlineKeyboardButton(get_text('admin.assign_trainer', lang), callback_data=f'admin_select_trainer:{workout_id}:{source}'),
-                InlineKeyboardButton(get_text('admin.delete_workout', lang), callback_data=f'admin_delete_workout_confirm:{workout_id}'),
-            ],
-            [InlineKeyboardButton(get_text('menu.back', lang), callback_data=back_callback)]
-        ]
+        keyboard = admin_workout_details_keyboard(workout_id, source, lang)
 
         await query.edit_message_text(
             text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
+            reply_markup=keyboard,
             parse_mode='HTML'
         )
 
@@ -262,11 +233,11 @@ async def show_users_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text += get_text('admin.stats_admins', lang, count=stats.get('admin', 0)) + "\n\n"
     text += get_text('admin.stats_hint', lang)
 
-    keyboard = [[InlineKeyboardButton(get_text('menu.back', lang), callback_data='admin_menu')]]
+    keyboard = admin_users_stats_keyboard(lang)
 
     await query.edit_message_text(
         text,
-        reply_markup=InlineKeyboardMarkup(keyboard),
+        reply_markup=keyboard,
         parse_mode='Markdown'
     )
 
@@ -304,8 +275,8 @@ async def admin_delete_workout_confirm(update: Update, context: ContextTypes.DEF
         f"{get_text('admin.delete_enter_reason', lang)}\n\n"
         f"{get_text('admin.delete_hint', lang)}"
     )
-    keyboard = [[InlineKeyboardButton(get_text('admin.delete_cancel', lang), callback_data=f'admin_cancel_delete:{workout_id}')]]
-    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    keyboard = admin_delete_workout_confirm_keyboard(workout_id, lang)
+    await query.edit_message_text(text, reply_markup=keyboard, parse_mode='Markdown')
 
 
 @role_required(UserRole.ADMIN)
@@ -440,19 +411,9 @@ async def admin_select_trainer(update: Update, context: ContextTypes.DEFAULT_TYP
     current = get_text('admin.trainer_current', lang, name=workout.trainer.full_name) if workout.trainer else get_text('admin.trainer_none', lang)
     text = get_text('admin.select_trainer', lang, name=workout.name, datetime=format_dt(workout.datetime, '%d.%m %H:%M', lang), current=current)
 
-    keyboard = []
-    for t in trainers:
-        role_label = " 👑" if t.role == UserRole.ADMIN else ""
-        keyboard.append([
-            InlineKeyboardButton(
-                f"{t.full_name}{role_label}",
-                callback_data=f'admin_assign_trainer:{workout_id}:{t.id}:{source}'
-            )
-        ])
-    keyboard.append([InlineKeyboardButton(get_text('admin.no_trainer_btn', lang), callback_data=f'admin_assign_trainer:{workout_id}:0:{source}')])
-    keyboard.append([InlineKeyboardButton(get_text('menu.back', lang), callback_data=f'admin_workout_details:{workout_id}:{source}')])
+    keyboard = admin_select_trainer_keyboard(trainers, workout_id, source, lang)
 
-    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    await query.edit_message_text(text, reply_markup=keyboard, parse_mode='Markdown')
 
 
 @role_required(UserRole.ADMIN)
@@ -484,8 +445,8 @@ async def admin_assign_trainer(update: Update, context: ContextTypes.DEFAULT_TYP
 
     trainer_name = workout.trainer.full_name if workout.trainer else get_text('schedule.no_trainer', lang)
     text = get_text('admin.trainer_assigned', lang, name=trainer_name, workout=workout.name, datetime=format_dt(workout.datetime, '%d.%m.%Y %H:%M', lang))
-    keyboard = [[InlineKeyboardButton(get_text('admin.to_workout', lang), callback_data=f'admin_workout_details:{workout_id}:{source}')]]
-    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    keyboard = admin_trainer_assigned_keyboard(workout_id, source, lang)
+    await query.edit_message_text(text, reply_markup=keyboard, parse_mode='Markdown')
 
 
 @role_required(UserRole.ADMIN)
@@ -502,14 +463,9 @@ async def show_admin_schedule_image(update: Update, context: ContextTypes.DEFAUL
     status_text = get_text('admin.image_loaded', lang) if exists else get_text('admin.image_not_loaded', lang)
 
     text = f"{get_text('admin.image_title', lang)}\n\n{status_text}\n\n{get_text('admin.image_upload_hint', lang)}"
-    keyboard = [
-        [InlineKeyboardButton(get_text('admin.image_upload_btn', lang), callback_data='admin_upload_schedule_image')],
-    ]
-    if exists:
-        keyboard.append([InlineKeyboardButton(get_text('admin.image_delete_btn', lang), callback_data='admin_delete_schedule_image')])
-    keyboard.append([InlineKeyboardButton(get_text('menu.back', lang), callback_data='admin_menu')])
+    keyboard = admin_schedule_image_menu_keyboard(exists, lang)
 
-    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    await query.edit_message_text(text, reply_markup=keyboard, parse_mode='Markdown')
 
 
 @role_required(UserRole.ADMIN)
@@ -522,11 +478,10 @@ async def admin_upload_schedule_image_prompt(update: Update, context: ContextTyp
     lang = user.language if user else 'ru'
 
     context.user_data['awaiting_schedule_image'] = True
+    keyboard = admin_upload_schedule_image_prompt_keyboard(lang)
     await query.edit_message_text(
         get_text('admin.image_upload_prompt', lang),
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton(get_text('admin.image_cancel', lang), callback_data='admin_schedule_image')]
-        ]),
+        reply_markup=keyboard,
         parse_mode='Markdown'
     )
 
@@ -542,11 +497,10 @@ async def admin_delete_schedule_image(update: Update, context: ContextTypes.DEFA
     lang = user.language if user else 'ru'
 
     delete_image()
+    keyboard = admin_delete_schedule_image_keyboard(lang)
     await query.edit_message_text(
         get_text('admin.image_deleted', lang),
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton(get_text('menu.back', lang), callback_data='admin_schedule_image')]
-        ]),
+        reply_markup=keyboard,
         parse_mode='Markdown'
     )
 

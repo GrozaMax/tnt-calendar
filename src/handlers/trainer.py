@@ -12,7 +12,14 @@ from telegram.ext import ContextTypes
 
 from src.database import get_session
 from src.database.repositories import WorkoutRepository, BookingRepository
-from src.keyboards.athlete_keyboards import trainer_section_keyboard, format_dt
+from src.keyboards.athlete_keyboards import format_dt
+from src.keyboards.trainer_keyboards import (
+    trainer_section_keyboard,
+    trainer_workouts_list_keyboard,
+    trainer_workout_details_keyboard,
+    trainer_free_slots_keyboard,
+    trainer_assigned_keyboard
+)
 from src.locales import get_text
 from src.models import User, UserRole, BookingStatus
 from src.services.booking_service import BookingService
@@ -76,57 +83,28 @@ async def show_trainer_workouts(update: Update, context: ContextTypes.DEFAULT_TY
         text += f"{get_text('trainer.use_web', lang)}\n"
         text += "https://tnt-calendar-adminweb.duckdns.org"
         
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-        keyboard = [[InlineKeyboardButton(get_text('menu.back', lang), callback_data='trainer_menu')]]
+        keyboard = trainer_workouts_list_keyboard([], lang)
 
         await query.edit_message_text(
             text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
+            reply_markup=keyboard,
             parse_mode='Markdown'
         )
         return
 
     text = f"*{title}*\n\n{get_text('trainer.found_count', lang, count=len(workouts))}\n\n"
 
-    # Создаём кнопки для каждой тренировки
-    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-    keyboard = []
-
-    for workout in workouts[:20]:  # Ограничение в 20
-        occupancy = workout.current_participants / workout.max_participants
-        
-        if occupancy >= 1.0:
-            status = "🔴"
-        elif occupancy >= 0.8:
-            status = "🟡"
-        else:
-            status = "🟢"
-        
-        button_text = (
-            f"{status} {format_dt(workout.datetime, '%d.%m %H:%M', lang)} - {workout.name} "
-            f"({workout.current_participants}/{workout.max_participants})"
-        )
-        keyboard.append([
-            InlineKeyboardButton(
-                button_text,
-                callback_data=f'trainer_workout_info:{workout.id}'
-            )
-        ])
-    
-    keyboard.append([
-        InlineKeyboardButton(get_text('menu.back', lang), callback_data='trainer_menu')
-    ])
+    keyboard = trainer_workouts_list_keyboard(workouts, lang)
     
     await query.edit_message_text(
         text,
-        reply_markup=InlineKeyboardMarkup(keyboard),
+        reply_markup=keyboard,
         parse_mode='Markdown'
     )
 
 
 async def _render_trainer_workout(query, user: User, workout_id: int, lang: str):
     """Общая логика отображения тренировки для тренера/админа."""
-    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
     async with get_session() as session:
         workout_repo = WorkoutRepository(session)
@@ -155,7 +133,6 @@ async def _render_trainer_workout(query, user: User, workout_id: int, lang: str)
             workout_id, status=BookingStatus.ACTIVE, load_relations=True
         )
 
-        keyboard = []
         if bookings:
             text += f"\n{get_text('admin.participants_list', lang)}\n\n"
             for i, booking in enumerate(bookings[:20], 1):
@@ -170,9 +147,9 @@ async def _render_trainer_workout(query, user: User, workout_id: int, lang: str)
         else:
             text += f"\n{get_text('admin.no_participants', lang)}"
 
-        keyboard.append([InlineKeyboardButton(get_text('menu.back', lang), callback_data='trainer_menu')])
+        keyboard = trainer_workout_details_keyboard(lang)
 
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='HTML')
+        await query.edit_message_text(text, reply_markup=keyboard, parse_mode='HTML')
 
 
 @role_required(UserRole.TRAINER, UserRole.ADMIN)
@@ -245,26 +222,21 @@ async def show_trainer_workout_info(update: Update, context: ContextTypes.DEFAUL
 
 async def _render_free_slots(query, lang: str):
     """Отрисовать список свободных слотов в сообщение."""
-    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
     async with get_session() as session:
         workout_repo = WorkoutRepository(session)
         workouts = await workout_repo.get_unassigned_workouts(days=7)
 
-    back_btn = [[InlineKeyboardButton(get_text('menu.back', lang), callback_data='trainer_menu')]]
     if not workouts:
         text = f"*{get_text('trainer.free_slots_btn', lang)}*\n\n{get_text('trainer.no_free_slots', lang)}"
-        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(back_btn), parse_mode='Markdown')
+        keyboard = trainer_free_slots_keyboard([], lang)
+        await query.edit_message_text(text, reply_markup=keyboard, parse_mode='Markdown')
         return
 
     text = f"*{get_text('trainer.free_slots_btn', lang)}*\n\n{get_text('trainer.select_to_assign', lang)}\n"
-    keyboard = []
-    for workout in workouts[:20]:
-        button_text = f"{format_dt(workout.datetime, '%d.%m %H:%M', lang)} - {workout.name} ({workout.current_participants}/{workout.max_participants})"
-        keyboard.append([InlineKeyboardButton(button_text, callback_data=f'trainer_assign:{workout.id}')])
-
-    keyboard += back_btn
-    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+    keyboard = trainer_free_slots_keyboard(workouts, lang)
+    
+    await query.edit_message_text(text, reply_markup=keyboard, parse_mode='Markdown')
 
 
 @role_required(UserRole.TRAINER, UserRole.ADMIN)
@@ -308,7 +280,6 @@ async def assign_trainer_to_workout(update: Update, context: ContextTypes.DEFAUL
 
     await query.answer()
 
-    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
     date_str = format_dt(workout.datetime, '%d.%m %H:%M', lang)
     text = (
         f"✅ *Вы назначены на тренировку!*\n\n"
@@ -316,8 +287,5 @@ async def assign_trainer_to_workout(update: Update, context: ContextTypes.DEFAUL
         f"📅 {date_str}\n"
         f"👥 {workout.current_participants}/{workout.max_participants} участников"
     )
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📋 Свободные слоты", callback_data='trainer_free_slots')],
-        [InlineKeyboardButton(get_text('menu.back', lang), callback_data='trainer_menu')],
-    ])
+    keyboard = trainer_assigned_keyboard(lang)
     await query.edit_message_text(text, reply_markup=keyboard, parse_mode='Markdown')

@@ -10,10 +10,10 @@ from src.handlers.athlete import show_main_menu, show_help
 from src.keyboards.athlete_keyboards import (
     main_reply_keyboard, schedule_days_keyboard,
     my_bookings_keyboard, back_to_main_menu_keyboard,
-    trainer_section_keyboard,
     REPLY_BOOK_WORKOUT_TEXTS, REPLY_MY_BOOKINGS_TEXTS,
     REPLY_TRAINER_SECTION_TEXTS, REPLY_ADMIN_PANEL_TEXTS,
 )
+from src.keyboards.trainer_keyboards import trainer_section_keyboard
 from src.locales import get_text
 
 logger = logging.getLogger(__name__)
