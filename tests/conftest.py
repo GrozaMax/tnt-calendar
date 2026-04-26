@@ -163,6 +163,8 @@ _API_MODULES = [
     'web.api.schedule_template',
     'web.api.business_settings',
     'web.api.auth',
+    'web.api.broadcast',
+    'web.api.analytics',
 ]
 
 

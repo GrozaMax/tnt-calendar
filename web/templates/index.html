@@ -27,6 +27,8 @@
             <button class="tab" onclick="switchTab('template')" id="templateTab">📋 Шаблон расписания</button>
             <button class="tab" onclick="switchTab('scheduleImage')" id="scheduleImageTab">📸 Картинка расписания</button>
             <button class="tab" onclick="switchTab('gymSettings')" id="gymSettingsTab">⚙️ Настройки зала</button>
+            <button class="tab" onclick="switchTab('broadcast')" id="broadcastTab">📢 Рассылка</button>
+            <button class="tab" onclick="switchTab('analytics')" id="analyticsTab">📊 Аналитика</button>
         </div>
 
         <!-- Вкладка: Сегодня -->
@@ -266,6 +268,69 @@
                 </p>
                 <div id="gymSettingsBody">
                     <div class="loading">Откройте вкладку снова, если данные не загрузились.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Вкладка: Рассылка -->
+        <div id="broadcast" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2>📢 Рассылка сообщений</h2>
+                </div>
+                <p style="color:#666;margin-bottom:16px;">
+                    Отправьте сообщение всем пользователям бота или выбранным пользователям.
+                </p>
+
+                <div class="form-group">
+                    <label>Текст сообщения (поддерживается Markdown)</label>
+                    <textarea id="broadcastMessage" class="form-control" rows="6" placeholder="Привет! Завтра тренировка отменяется..."></textarea>
+                </div>
+
+                <div style="margin-top:20px; padding:16px; background:#f8f9fa; border-radius:8px;">
+                    <h3 style="margin-top:0;">Выборочная рассылка</h3>
+                    <p style="font-size:14px; color:#666;">Выберите пользователей, которым хотите отправить сообщение (если ничего не выбрано, отправится всем).</p>
+                    <div style="max-height:200px; overflow-y:auto; border:1px solid #ddd; padding:10px; background:#fff; border-radius:4px;" id="broadcastUserList">
+                        <div class="loading">Загрузка пользователей...</div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; display:flex; gap:12px; align-items:center;">
+                    <button class="btn btn-primary" onclick="sendBroadcastSelected()" id="btnSendBroadcast">
+                        🚀 Отправить выбранным
+                    </button>
+                    <button class="btn btn-success" onclick="sendBroadcastAll()" id="btnSendBroadcastAll">
+                        🌍 Отправить вообще всем
+                    </button>
+                </div>
+                <div id="broadcastStatus" style="margin-top:16px;"></div>
+            </div>
+        </div>
+
+        <!-- Вкладка: Аналитика -->
+        <div id="analytics" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2>📊 Тепловая карта</h2>
+                </div>
+                <p style="color:#666;margin-bottom:12px;">
+                    Средняя заполняемость тренировок по дням недели и времени.
+                </p>
+
+                <!-- Выбор периода -->
+                <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:16px;">
+                    <span style="font-size:14px; color:#555; font-weight:600;">Период:</span>
+                    <button class="btn btn-sm btn-secondary analytics-period-btn" id="period7"   onclick="setAnalyticsPeriod(7)">7 дней</button>
+                    <button class="btn btn-sm btn-primary  analytics-period-btn" id="period30"  onclick="setAnalyticsPeriod(30)">30 дней</button>
+                    <button class="btn btn-sm btn-secondary analytics-period-btn" id="period60"  onclick="setAnalyticsPeriod(60)">60 дней</button>
+                    <button class="btn btn-sm btn-secondary analytics-period-btn" id="period90"  onclick="setAnalyticsPeriod(90)">90 дней</button>
+                    <button class="btn btn-sm btn-secondary analytics-period-btn" id="period180" onclick="setAnalyticsPeriod(180)">6 мес</button>
+                    <button class="btn btn-sm btn-secondary analytics-period-btn" id="period365" onclick="setAnalyticsPeriod(365)">Год</button>
+                    <button class="btn btn-sm btn-success" onclick="loadAnalytics()">🔄 Обновить</button>
+                </div>
+
+                <div id="analyticsContent" style="overflow-x:auto;">
+                    <div class="loading">Нажмите «Обновить»...</div>
                 </div>
             </div>
         </div>

@@ -3,7 +3,7 @@
 """
 import pytest
 from datetime import datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 from fastapi import status
 from httpx import ASGITransport, AsyncClient
 
@@ -316,3 +316,47 @@ class TestGymSettingsAPI:
         )
         assert r.status_code == status.HTTP_200_OK
         assert r.json()["max_bookings_per_day"] == 3
+
+
+class TestBroadcastAPI:
+    """Тесты API рассылки (только админ)"""
+
+    pytestmark = pytest.mark.asyncio
+
+    async def test_broadcast_forbidden_trainer(self, api_client_trainer):
+        r = await api_client_trainer.post("/api/broadcast/", json={"message": "hello"})
+        assert r.status_code == status.HTTP_403_FORBIDDEN
+
+    @patch("web.api.broadcast.Bot")
+    async def test_broadcast_empty_message(self, mock_bot, api_client_admin):
+        r = await api_client_admin.post("/api/broadcast/", json={"message": "  "})
+        assert r.status_code == status.HTTP_400_BAD_REQUEST
+
+    @patch("web.api.broadcast.Bot")
+    async def test_broadcast_to_all(self, mock_bot, api_client_admin, test_athlete):
+        mock_instance = mock_bot.return_value
+        mock_instance.send_message = AsyncMock(return_value=None)
+
+        r = await api_client_admin.post("/api/broadcast/", json={"message": "hello"})
+        assert r.status_code == status.HTTP_200_OK
+        data = r.json()
+        assert data["success"] is True
+        assert data["total"] >= 1
+        assert mock_instance.send_message.called
+
+
+class TestAnalyticsAPI:
+    """Тесты API аналитики (только админ)"""
+
+    pytestmark = pytest.mark.asyncio
+
+    async def test_analytics_forbidden_trainer(self, api_client_trainer):
+        r = await api_client_trainer.get("/api/analytics/heatmap")
+        assert r.status_code == status.HTTP_403_FORBIDDEN
+
+    async def test_analytics_heatmap(self, api_client_admin):
+        r = await api_client_admin.get("/api/analytics/heatmap")
+        assert r.status_code == status.HTTP_200_OK
+        data = r.json()
+        assert "heatmap" in data
+        assert "total_workouts" in data

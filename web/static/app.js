@@ -724,6 +724,10 @@ function switchTab(tabName) {
         loadScheduleImage();
     } else if (tabName === 'gymSettings') {
         loadGymSettings();
+    } else if (tabName === 'broadcast') {
+        loadBroadcastUsers();
+    } else if (tabName === 'analytics') {
+        loadAnalytics();
     }
 }
 
@@ -997,6 +1001,189 @@ async function deleteScheduleImage() {
         showError(e.message);
     }
 }
+
+// ─── Рассылка сообщений ──────────────────────────────────────────────────────
+async function loadBroadcastUsers() {
+    const list = document.getElementById('broadcastUserList');
+    list.innerHTML = '<div class="loading">Загрузка пользователей...</div>';
+    try {
+        // Подгружаем всех пользователей постранично (API ограничивает limit=100)
+        let allUsers = [];
+        let offset = 0;
+        const pageSize = 100;
+        while (true) {
+            const data = await apiRequest('/users/?limit=' + pageSize + '&offset=' + offset);
+            allUsers = allUsers.concat(data.users || []);
+            if (allUsers.length >= data.total) break;
+            offset += pageSize;
+        }
+
+        if (allUsers.length === 0) {
+            list.innerHTML = '<div>Пользователей нет.</div>';
+            return;
+        }
+
+        // Кнопки "выбрать всех / снять выбор"
+        let html = '<div style="padding:6px 0 10px; display:flex; gap:10px;">'
+            + '<button class="btn btn-sm btn-secondary" onclick="broadcastSelectAll(true)">✅ Выбрать всех</button>'
+            + '<button class="btn btn-sm btn-secondary" onclick="broadcastSelectAll(false)">☐ Снять выбор</button>'
+            + '</div>';
+
+        allUsers.forEach(u => {
+            const label = u.full_name + (u.username ? ' (@' + u.username + ')' : '');
+            html += '<div style="padding:5px 0; border-bottom:1px solid #eee; display:flex; align-items:center;">'
+                + '<input type="checkbox" class="broadcast-user-cb" value="' + u.id + '" id="bcast_' + u.id + '" style="margin-right:10px;">'
+                + '<label for="bcast_' + u.id + '" style="cursor:pointer; display:flex; gap:10px; width:100%;">'
+                + '<span>' + label + '</span>'
+                + '<span style="color:#888; font-size:12px;">[' + u.role + ']</span>'
+                + '</label>'
+                + '</div>';
+        });
+        list.innerHTML = html;
+    } catch (e) {
+        list.innerHTML = '<div class="alert alert-error">Ошибка: ' + e.message + '</div>';
+    }
+}
+
+function broadcastSelectAll(checked) {
+    document.querySelectorAll('.broadcast-user-cb').forEach(cb => { cb.checked = checked; });
+}
+
+async function _doSendBroadcast(targetUsers) {
+    const msg = document.getElementById('broadcastMessage').value.trim();
+    if (!msg) {
+        showError('Сообщение не может быть пустым');
+        return;
+    }
+    if (!confirm('Вы уверены, что хотите отправить эту рассылку?')) return;
+    
+    const status = document.getElementById('broadcastStatus');
+    status.innerHTML = '<div class="alert alert-info">Отправка сообщений... Это может занять некоторое время.</div>';
+    
+    const reqData = { message: msg };
+    if (targetUsers !== null) {
+        reqData.target_users = targetUsers;
+    }
+    
+    try {
+        const res = await apiRequest('/broadcast/', {
+            method: 'POST',
+            body: JSON.stringify(reqData)
+        });
+        status.innerHTML = `<div class="alert alert-success">✅ Рассылка завершена.<br>Отправлено: ${res.sent}<br>Ошибок: ${res.failed}<br>Всего пользователей в выборке: ${res.total}</div>`;
+        document.getElementById('broadcastMessage').value = '';
+        // Uncheck all
+        document.querySelectorAll('.broadcast-user-cb').forEach(cb => cb.checked = false);
+    } catch (e) {
+        status.innerHTML = `<div class="alert alert-error">Ошибка: ${e.message}</div>`;
+    }
+}
+
+async function sendBroadcastSelected() {
+    const checked = Array.from(document.querySelectorAll('.broadcast-user-cb:checked')).map(cb => parseInt(cb.value));
+    if (checked.length === 0) {
+        showError('Выберите хотя бы одного пользователя (или нажмите "Отправить вообще всем")');
+        return;
+    }
+    await _doSendBroadcast(checked);
+}
+
+async function sendBroadcastAll() {
+    await _doSendBroadcast(null);
+}
+
+// ─── Аналитика ──────────────────────────────────────────────────────────────
+let _analyticsDaysBack = 30;
+
+function setAnalyticsPeriod(days) {
+    _analyticsDaysBack = days;
+    // Подсветка активной кнопки
+    document.querySelectorAll('.analytics-period-btn').forEach(btn => {
+        btn.className = 'btn btn-sm btn-secondary analytics-period-btn';
+    });
+    const activeBtn = document.getElementById('period' + days);
+    if (activeBtn) activeBtn.className = 'btn btn-sm btn-primary analytics-period-btn';
+}
+
+async function loadAnalytics() {
+    const content = document.getElementById('analyticsContent');
+    content.innerHTML = '<div class="loading">Загрузка аналитики...</div>';
+
+    try {
+        const data = await apiRequest('/analytics/heatmap?days_back=' + _analyticsDaysBack);
+
+        if (!data.heatmap || data.heatmap.length === 0) {
+            content.innerHTML = '<div class="alert alert-info">Нет данных за этот период</div>';
+            return;
+        }
+
+        // Оси: строки = время, колонки = дни недели
+        const days     = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+        const daysLong = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+        const times = [...new Set(data.heatmap.map(item => item.time))].sort();
+
+        // Заголовок с инфо
+        let html = '<div style="margin-bottom:12px; font-size:14px; color:#555;">'
+            + 'Всего тренировок за период: <b>' + data.total_workouts + '</b>'
+            + ' &nbsp;|&nbsp; Период: <b>' + _analyticsDaysBack + ' дней</b>'
+            + '</div>'
+            + '<div style="overflow-x:auto;">'
+            + '<table style="border-collapse:collapse; min-width:500px;">'
+            + '<thead><tr>'
+            + '<th style="padding:8px 12px; border:1px solid #ddd; background:#f0f4f8; font-size:13px; white-space:nowrap;">🕐 Время</th>';
+
+        // Колонки — дни недели
+        for (let d = 0; d < 7; d++) {
+            html += '<th style="padding:8px 14px; border:1px solid #ddd; background:#f0f4f8; text-align:center; font-size:13px;" title="' + daysLong[d] + '">'
+                + days[d] + '</th>';
+        }
+        html += '</tr></thead><tbody>';
+
+        // Строки — временные слоты
+        for (const t of times) {
+            html += '<tr>'
+                + '<td style="padding:8px 12px; border:1px solid #ddd; background:#fafafa; font-weight:600; font-size:13px; white-space:nowrap;">' + t + '</td>';
+
+            for (let d = 0; d < 7; d++) {
+                const cell = data.heatmap.find(x => x.weekday === d && x.time === t);
+                if (cell) {
+                    const alpha = Math.min(0.9, Math.max(0.08, cell.fill_rate));
+                    // Градиент от зелёного (мало) к красному (полно)
+                    const hue = Math.round((1 - cell.fill_rate) * 120);
+                    const bgColor = 'hsla(' + hue + ', 72%, 48%, ' + alpha + ')';
+                    const textColor = alpha > 0.55 ? 'white' : '#333';
+                    const pct = Math.round(cell.fill_rate * 100);
+                    const title = daysLong[d] + ' ' + t
+                        + '\nЗаполняемость: ' + pct + '%'
+                        + '\nСред. участников: ' + cell.avg_participants.toFixed(1) + ' / ' + cell.avg_max.toFixed(1)
+                        + '\nТренировок в выборке: ' + cell.count;
+                    html += '<td style="padding:10px 14px; border:1px solid #ddd; background:' + bgColor
+                        + '; color:' + textColor + '; text-align:center; cursor:default;" title="' + title + '">'
+                        + '<div style="font-size:15px; font-weight:700; line-height:1.2;">' + pct + '%</div>'
+                        + '<div style="font-size:11px; opacity:0.85; margin-top:2px;">'
+                        + cell.avg_participants.toFixed(1) + '&thinsp;чел.'
+                        + '</div>'
+                        + '</td>';
+                } else {
+                    html += '<td style="padding:10px 14px; border:1px solid #ddd; background:#f8f8f8; color:#ccc; text-align:center;">—</td>';
+                }
+            }
+            html += '</tr>';
+        }
+
+        html += '</tbody></table></div>'
+            + '<div style="margin-top:10px; font-size:12px; color:#999;">'
+            + '* Наведите курсор на ячейку для подробностей. '
+            + 'Цвет: 🟢 мало заполнено → 🔴 полная запись.'
+            + '</div>';
+
+        content.innerHTML = html;
+
+    } catch (e) {
+        content.innerHTML = '<div class="alert alert-error">Ошибка: ' + e.message + '</div>';
+    }
+}
+
 
 // ─── Список тренеров (для dropdown) ─────────────────────────────────────────
 
@@ -1309,6 +1496,12 @@ window.deleteScheduleImage = deleteScheduleImage;
 window.navigateWeek = navigateWeek;
 window.loadGymSettings = loadGymSettings;
 window.saveGymSettings = saveGymSettings;
+window.loadBroadcastUsers = loadBroadcastUsers;
+window.sendBroadcastSelected = sendBroadcastSelected;
+window.sendBroadcastAll = sendBroadcastAll;
+window.broadcastSelectAll = broadcastSelectAll;
+window.loadAnalytics = loadAnalytics;
+window.setAnalyticsPeriod = setAnalyticsPeriod;
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
@@ -1349,6 +1542,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (scheduleImageTab) scheduleImageTab.style.display = 'none';
         const gymSettingsTab = document.getElementById('gymSettingsTab');
         if (gymSettingsTab) gymSettingsTab.style.display = 'none';
+        const broadcastTab = document.getElementById('broadcastTab');
+        if (broadcastTab) broadcastTab.style.display = 'none';
+        const analyticsTab = document.getElementById('analyticsTab');
+        if (analyticsTab) analyticsTab.style.display = 'none';
     }
 
     // Обработчики форм

@@ -84,6 +84,16 @@ async def get_current_user(
         return user
 
 
+async def require_admin(user = Depends(get_current_user)):
+    """Требует прав администратора"""
+    if user.ui_role_key() != 'admin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required"
+        )
+    return user
+
+
 @router.post("/login", response_model=LoginResponse)
 async def login(request: LoginRequest):
     """
