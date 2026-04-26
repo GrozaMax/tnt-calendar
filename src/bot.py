@@ -389,11 +389,23 @@ class TelegramBot:
         await init_db()
         logger.info("База данных инициализирована")
         
-        # Запускаем джоб напоминаний (каждые 5 минут)
+        # Запускаем джоб напоминаний каждые 5 минут.
+        # Привязка к :01, :06, :11, ..., :56 — со смещением +1 мин от ровных пятиминуток.
+        # Тренировки обычно начинаются в :00 или :30, поэтому при запуске в :01
+        # minutes_left будет 59 (а не 0), и напоминание гарантированно попадёт в окно.
         job_queue = application.job_queue
         if job_queue:
-            job_queue.run_repeating(check_workout_reminders, interval=300, first=10)
-            logger.info("Джоб отправки напоминаний запущен")
+            from datetime import datetime as _dt, timedelta as _td
+            _now = _dt.now()
+            # Следующая минута вида XX:01, XX:06, XX:11, ...
+            _m = _now.minute
+            _next_slot = _m - (_m % 5) + 1  # ближайшая :01/:06/:11/...
+            if _next_slot <= _m:
+                _next_slot += 5
+            _first_run = _now.replace(second=0, microsecond=0) + _td(minutes=_next_slot - _m)
+            _delay = max(1, (_first_run - _now).total_seconds())
+            job_queue.run_repeating(check_workout_reminders, interval=300, first=_delay)
+            logger.info(f"Джоб напоминаний запущен, первый запуск через {_delay:.0f}с (в {_first_run.strftime('%H:%M')})")
     
     def run(self):
         """Запуск бота"""

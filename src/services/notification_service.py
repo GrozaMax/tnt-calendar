@@ -114,9 +114,9 @@ async def check_workout_reminders(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Фоновая задача проверки тренировок и отправки напоминаний"""
     from sqlalchemy import select
     from sqlalchemy.orm import joinedload
-    import asyncio
 
     now = datetime.now()
+    logger.debug(f"[reminders] Проверка напоминаний, now={now.strftime('%Y-%m-%d %H:%M:%S')}")
 
     async with async_session_maker() as session:
         # Находим все активные записи (где reminder_sent=False),
@@ -135,19 +135,31 @@ async def check_workout_reminders(context: ContextTypes.DEFAULT_TYPE) -> None:
         result = await session.execute(query)
         bookings = result.scalars().all()
 
+        logger.debug(f"[reminders] Найдено букингов с reminder_sent=False: {len(bookings)}")
+
+        sent_count = 0
         for booking in bookings:
             user = booking.user
             workout = booking.workout
 
             # Проверяем, нужны ли вообще уведомления
             if not user.notifications_enabled:
+                logger.debug(f"[reminders] Пропуск booking#{booking.id}: уведомления выключены у {user.full_name}")
                 continue
 
             # Считаем сколько минут осталось до тренировки
             diff = workout.datetime - now
             minutes_left = diff.total_seconds() / 60.0
 
-            # Если время до тренировки меньше или равно настройке напоминания (плюс небольшой запас на опоздание джоба)
+            logger.debug(
+                f"[reminders] booking#{booking.id}: "
+                f"workout={workout.name} at {workout.datetime.strftime('%Y-%m-%d %H:%M')}, "
+                f"user={user.full_name}, "
+                f"minutes_left={minutes_left:.1f}, "
+                f"reminder_minutes={user.reminder_minutes}"
+            )
+
+            # Если время до тренировки меньше или равно настройке напоминания
             # и тренировка еще не прошла
             if 0 < minutes_left <= user.reminder_minutes:
                 time_str = workout.datetime.strftime('%H:%M')
@@ -161,5 +173,10 @@ async def check_workout_reminders(context: ContextTypes.DEFAULT_TYPE) -> None:
                 
                 # Отмечаем как отправленное
                 booking.reminder_sent = True
+                sent_count += 1
+                logger.info(f"[reminders] ✅ Напоминание отправлено: {user.full_name} → {workout.name} в {time_str}")
         
-        await session.commit()
+        if sent_count > 0:
+            await session.commit()
+            logger.info(f"[reminders] Отправлено напоминаний: {sent_count}")
+
