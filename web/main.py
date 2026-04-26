@@ -7,7 +7,7 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 
-from web.api import workouts, users, auth, schedule_template, schedule_image, business_settings
+from web.api import workouts, users, auth, schedule_template, schedule_image, business_settings, broadcast, analytics
 from web.config import WebConfig
 from web.middleware import SecurityMiddleware, AccessLogMiddleware
 from src.database.connection import init_db
@@ -73,6 +73,8 @@ app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(schedule_template.router, prefix="/api/schedule-template", tags=["schedule-template"])
 app.include_router(schedule_image.router, prefix="/api/schedule-image", tags=["schedule-image"])
 app.include_router(business_settings.router, prefix="/api/settings", tags=["settings"])
+app.include_router(broadcast.router, prefix="/api/broadcast", tags=["broadcast"])
+app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"])
 
 # ---------------------------------------------------------------------------
 # Статические файлы

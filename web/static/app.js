@@ -724,6 +724,10 @@ function switchTab(tabName) {
         loadScheduleImage();
     } else if (tabName === 'gymSettings') {
         loadGymSettings();
+    } else if (tabName === 'broadcast') {
+        loadBroadcastUsers();
+    } else if (tabName === 'analytics') {
+        loadAnalytics();
     }
 }
 
@@ -995,6 +999,144 @@ async function deleteScheduleImage() {
         loadScheduleImage();
     } catch (e) {
         showError(e.message);
+    }
+}
+
+// ─── Рассылка сообщений ──────────────────────────────────────────────────────
+async function loadBroadcastUsers() {
+    const list = document.getElementById('broadcastUserList');
+    list.innerHTML = '<div class="loading">Загрузка пользователей...</div>';
+    try {
+        const data = await apiRequest('/users/?limit=1000');
+        if (!data.users || data.users.length === 0) {
+            list.innerHTML = '<div>Пользователей нет.</div>';
+            return;
+        }
+        
+        let html = '';
+        data.users.forEach(u => {
+            html += `
+                <div style="padding: 5px; border-bottom: 1px solid #eee; display: flex; align-items: center;">
+                    <input type="checkbox" class="broadcast-user-cb" value="${u.id}" id="user_${u.id}" style="margin-right: 10px;">
+                    <label for="user_${u.id}" style="cursor:pointer; display:flex; gap:10px; width:100%;">
+                        <span>${u.full_name} ${u.username ? '(@' + u.username + ')' : ''}</span>
+                        <span style="color:#888; font-size:12px;">[${u.role}]</span>
+                    </label>
+                </div>
+            `;
+        });
+        list.innerHTML = html;
+    } catch (e) {
+        list.innerHTML = `<div class="alert alert-error">Ошибка: ${e.message}</div>`;
+    }
+}
+
+async function _doSendBroadcast(targetUsers) {
+    const msg = document.getElementById('broadcastMessage').value.trim();
+    if (!msg) {
+        showError('Сообщение не может быть пустым');
+        return;
+    }
+    if (!confirm('Вы уверены, что хотите отправить эту рассылку?')) return;
+    
+    const status = document.getElementById('broadcastStatus');
+    status.innerHTML = '<div class="alert alert-info">Отправка сообщений... Это может занять некоторое время.</div>';
+    
+    const reqData = { message: msg };
+    if (targetUsers !== null) {
+        reqData.target_users = targetUsers;
+    }
+    
+    try {
+        const res = await apiRequest('/broadcast/', {
+            method: 'POST',
+            body: JSON.stringify(reqData)
+        });
+        status.innerHTML = `<div class="alert alert-success">✅ Рассылка завершена.<br>Отправлено: ${res.sent}<br>Ошибок: ${res.failed}<br>Всего пользователей в выборке: ${res.total}</div>`;
+        document.getElementById('broadcastMessage').value = '';
+        // Uncheck all
+        document.querySelectorAll('.broadcast-user-cb').forEach(cb => cb.checked = false);
+    } catch (e) {
+        status.innerHTML = `<div class="alert alert-error">Ошибка: ${e.message}</div>`;
+    }
+}
+
+async function sendBroadcastSelected() {
+    const checked = Array.from(document.querySelectorAll('.broadcast-user-cb:checked')).map(cb => parseInt(cb.value));
+    if (checked.length === 0) {
+        showError('Выберите хотя бы одного пользователя (или нажмите "Отправить вообще всем")');
+        return;
+    }
+    await _doSendBroadcast(checked);
+}
+
+async function sendBroadcastAll() {
+    await _doSendBroadcast(null);
+}
+
+// ─── Аналитика ──────────────────────────────────────────────────────────────
+async function loadAnalytics() {
+    const content = document.getElementById('analyticsContent');
+    content.innerHTML = '<div class="loading">Загрузка аналитики...</div>';
+    
+    try {
+        const data = await apiRequest('/analytics/heatmap');
+        
+        if (!data.heatmap || data.heatmap.length === 0) {
+            content.innerHTML = '<div class="alert alert-info">Нет данных за этот период</div>';
+            return;
+        }
+        
+        // Создаем матрицу heatmap: дни недели (строки) х время (колонки)
+        const times = [...new Set(data.heatmap.map(item => item.time))].sort();
+        const days = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+        
+        let html = \`
+            <div style="margin-bottom:15px; font-size:14px; color:#555;">
+                Всего проведено тренировок за 30 дней: <b>\${data.total_workouts}</b>
+            </div>
+            <table style="width:100%; border-collapse: collapse; min-width:600px;">
+                <thead>
+                    <tr>
+                        <th style="padding:10px; border:1px solid #ddd; background:#f5f5f5;">День \\ Время</th>
+                        \${times.map(t => \`<th style="padding:10px; border:1px solid #ddd; background:#f5f5f5; text-align:center;">\${t}</th>\`).join('')}
+                    </tr>
+                </thead>
+                <tbody>
+        \`;
+        
+        for (let d = 0; d < 7; d++) {
+            html += \`<tr><td style="padding:10px; border:1px solid #ddd; font-weight:bold; background:#fafafa;">\${days[d]}</td>\`;
+            
+            for (const t of times) {
+                const cell = data.heatmap.find(x => x.weekday === d && x.time === t);
+                if (cell) {
+                    const alpha = Math.min(1, Math.max(0.1, cell.fill_rate));
+                    const bgColor = \`rgba(76, 175, 80, \${alpha})\`;
+                    const textColor = alpha > 0.6 ? 'white' : 'black';
+                    
+                    html += \`
+                        <td style="padding:10px; border:1px solid #ddd; background:\${bgColor}; color:\${textColor}; text-align:center; position:relative;" title="Проведено: \${cell.count}\\nСред. участников: \${cell.avg_participants.toFixed(1)} / \${cell.avg_max.toFixed(1)}">
+                            <div style="font-size:16px; font-weight:bold;">\${Math.round(cell.fill_rate * 100)}%</div>
+                            <div style="font-size:11px; opacity:0.8;">\${cell.avg_participants.toFixed(1)} чел.</div>
+                        </td>
+                    \`;
+                } else {
+                    html += \`<td style="padding:10px; border:1px solid #ddd; background:#f9f9f9; color:#ccc; text-align:center;">—</td>\`;
+                }
+            }
+            html += \`</tr>\`;
+        }
+        
+        html += \`</tbody></table>
+            <div style="margin-top:10px; font-size:12px; color:#888;">
+                * Наведите курсор на ячейку, чтобы увидеть подробности (среднее количество участников и сколько тренировок проведено в этот слот).
+            </div>
+        \`;
+        content.innerHTML = html;
+        
+    } catch (e) {
+        content.innerHTML = \`<div class="alert alert-error">Ошибка: \${e.message}</div>\`;
     }
 }
 
@@ -1309,6 +1451,10 @@ window.deleteScheduleImage = deleteScheduleImage;
 window.navigateWeek = navigateWeek;
 window.loadGymSettings = loadGymSettings;
 window.saveGymSettings = saveGymSettings;
+window.loadBroadcastUsers = loadBroadcastUsers;
+window.sendBroadcastSelected = sendBroadcastSelected;
+window.sendBroadcastAll = sendBroadcastAll;
+window.loadAnalytics = loadAnalytics;
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
@@ -1349,6 +1495,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (scheduleImageTab) scheduleImageTab.style.display = 'none';
         const gymSettingsTab = document.getElementById('gymSettingsTab');
         if (gymSettingsTab) gymSettingsTab.style.display = 'none';
+        const broadcastTab = document.getElementById('broadcastTab');
+        if (broadcastTab) broadcastTab.style.display = 'none';
+        const analyticsTab = document.getElementById('analyticsTab');
+        if (analyticsTab) analyticsTab.style.display = 'none';
     }
 
     // Обработчики форм

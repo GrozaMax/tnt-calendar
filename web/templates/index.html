@@ -27,6 +27,8 @@
             <button class="tab" onclick="switchTab('template')" id="templateTab">📋 Шаблон расписания</button>
             <button class="tab" onclick="switchTab('scheduleImage')" id="scheduleImageTab">📸 Картинка расписания</button>
             <button class="tab" onclick="switchTab('gymSettings')" id="gymSettingsTab">⚙️ Настройки зала</button>
+            <button class="tab" onclick="switchTab('broadcast')" id="broadcastTab">📢 Рассылка</button>
+            <button class="tab" onclick="switchTab('analytics')" id="analyticsTab">📊 Аналитика</button>
         </div>
 
         <!-- Вкладка: Сегодня -->
@@ -266,6 +268,60 @@
                 </p>
                 <div id="gymSettingsBody">
                     <div class="loading">Откройте вкладку снова, если данные не загрузились.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Вкладка: Рассылка -->
+        <div id="broadcast" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2>📢 Рассылка сообщений</h2>
+                </div>
+                <p style="color:#666;margin-bottom:16px;">
+                    Отправьте сообщение всем пользователям бота или выбранным пользователям.
+                </p>
+
+                <div class="form-group">
+                    <label>Текст сообщения (поддерживается Markdown)</label>
+                    <textarea id="broadcastMessage" class="form-control" rows="6" placeholder="Привет! Завтра тренировка отменяется..."></textarea>
+                </div>
+
+                <div style="margin-top:20px; padding:16px; background:#f8f9fa; border-radius:8px;">
+                    <h3 style="margin-top:0;">Выборочная рассылка</h3>
+                    <p style="font-size:14px; color:#666;">Выберите пользователей, которым хотите отправить сообщение (если ничего не выбрано, отправится всем).</p>
+                    <div style="max-height:200px; overflow-y:auto; border:1px solid #ddd; padding:10px; background:#fff; border-radius:4px;" id="broadcastUserList">
+                        <div class="loading">Загрузка пользователей...</div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; display:flex; gap:12px; align-items:center;">
+                    <button class="btn btn-primary" onclick="sendBroadcastSelected()" id="btnSendBroadcast">
+                        🚀 Отправить выбранным
+                    </button>
+                    <button class="btn btn-success" onclick="sendBroadcastAll()" id="btnSendBroadcastAll">
+                        🌍 Отправить вообще всем
+                    </button>
+                </div>
+                <div id="broadcastStatus" style="margin-top:16px;"></div>
+            </div>
+        </div>
+
+        <!-- Вкладка: Аналитика -->
+        <div id="analytics" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2>📊 Тепловая карта и Аналитика</h2>
+                </div>
+                <p style="color:#666;margin-bottom:16px;">
+                    Заполняемость тренировок за последние 30 дней.
+                </p>
+                <div style="display:flex; gap:10px; margin-bottom:16px;">
+                    <button class="btn btn-primary" onclick="loadAnalytics()">🔄 Обновить аналитику</button>
+                </div>
+                
+                <div id="analyticsContent" style="overflow-x:auto;">
+                    <div class="loading">Нажмите обновить...</div>
                 </div>
             </div>
         </div>
