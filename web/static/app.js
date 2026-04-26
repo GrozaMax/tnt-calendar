@@ -1078,65 +1078,58 @@ async function sendBroadcastAll() {
 async function loadAnalytics() {
     const content = document.getElementById('analyticsContent');
     content.innerHTML = '<div class="loading">Загрузка аналитики...</div>';
-    
+
     try {
         const data = await apiRequest('/analytics/heatmap');
-        
+
         if (!data.heatmap || data.heatmap.length === 0) {
             content.innerHTML = '<div class="alert alert-info">Нет данных за этот период</div>';
             return;
         }
-        
-        // Создаем матрицу heatmap: дни недели (строки) х время (колонки)
+
         const times = [...new Set(data.heatmap.map(item => item.time))].sort();
         const days = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
-        
-        let html = \`
-            <div style="margin-bottom:15px; font-size:14px; color:#555;">
-                Всего проведено тренировок за 30 дней: <b>\${data.total_workouts}</b>
-            </div>
-            <table style="width:100%; border-collapse: collapse; min-width:600px;">
-                <thead>
-                    <tr>
-                        <th style="padding:10px; border:1px solid #ddd; background:#f5f5f5;">День \\ Время</th>
-                        \${times.map(t => \`<th style="padding:10px; border:1px solid #ddd; background:#f5f5f5; text-align:center;">\${t}</th>\`).join('')}
-                    </tr>
-                </thead>
-                <tbody>
-        \`;
-        
+
+        let html = '<div style="margin-bottom:15px; font-size:14px; color:#555;">'
+            + 'Всего проведено тренировок за 30 дней: <b>' + data.total_workouts + '</b>'
+            + '</div>'
+            + '<div style="overflow-x:auto;">'
+            + '<table style="width:100%; border-collapse:collapse; min-width:600px;">'
+            + '<thead><tr>'
+            + '<th style="padding:10px; border:1px solid #ddd; background:#f5f5f5; white-space:nowrap;">День \\ Время</th>'
+            + times.map(t => '<th style="padding:10px; border:1px solid #ddd; background:#f5f5f5; text-align:center;">' + t + '</th>').join('')
+            + '</tr></thead><tbody>';
+
         for (let d = 0; d < 7; d++) {
-            html += \`<tr><td style="padding:10px; border:1px solid #ddd; font-weight:bold; background:#fafafa;">\${days[d]}</td>\`;
-            
+            html += '<tr><td style="padding:10px; border:1px solid #ddd; font-weight:bold; background:#fafafa; white-space:nowrap;">' + days[d] + '</td>';
+
             for (const t of times) {
                 const cell = data.heatmap.find(x => x.weekday === d && x.time === t);
                 if (cell) {
                     const alpha = Math.min(1, Math.max(0.1, cell.fill_rate));
-                    const bgColor = \`rgba(76, 175, 80, \${alpha})\`;
+                    const bgColor = 'rgba(76, 175, 80, ' + alpha + ')';
                     const textColor = alpha > 0.6 ? 'white' : 'black';
-                    
-                    html += \`
-                        <td style="padding:10px; border:1px solid #ddd; background:\${bgColor}; color:\${textColor}; text-align:center; position:relative;" title="Проведено: \${cell.count}\\nСред. участников: \${cell.avg_participants.toFixed(1)} / \${cell.avg_max.toFixed(1)}">
-                            <div style="font-size:16px; font-weight:bold;">\${Math.round(cell.fill_rate * 100)}%</div>
-                            <div style="font-size:11px; opacity:0.8;">\${cell.avg_participants.toFixed(1)} чел.</div>
-                        </td>
-                    \`;
+                    const title = 'Проведено: ' + cell.count + '\nСред. участников: ' + cell.avg_participants.toFixed(1) + ' / ' + cell.avg_max.toFixed(1);
+                    html += '<td style="padding:10px; border:1px solid #ddd; background:' + bgColor + '; color:' + textColor + '; text-align:center;" title="' + title + '">'
+                        + '<div style="font-size:16px; font-weight:bold;">' + Math.round(cell.fill_rate * 100) + '%</div>'
+                        + '<div style="font-size:11px; opacity:0.8;">' + cell.avg_participants.toFixed(1) + ' чел.</div>'
+                        + '</td>';
                 } else {
-                    html += \`<td style="padding:10px; border:1px solid #ddd; background:#f9f9f9; color:#ccc; text-align:center;">—</td>\`;
+                    html += '<td style="padding:10px; border:1px solid #ddd; background:#f9f9f9; color:#ccc; text-align:center;">—</td>';
                 }
             }
-            html += \`</tr>\`;
+            html += '</tr>';
         }
-        
-        html += \`</tbody></table>
-            <div style="margin-top:10px; font-size:12px; color:#888;">
-                * Наведите курсор на ячейку, чтобы увидеть подробности (среднее количество участников и сколько тренировок проведено в этот слот).
-            </div>
-        \`;
+
+        html += '</tbody></table></div>'
+            + '<div style="margin-top:10px; font-size:12px; color:#888;">'
+            + '* Наведите курсор на ячейку, чтобы увидеть подробности.'
+            + '</div>';
+
         content.innerHTML = html;
-        
+
     } catch (e) {
-        content.innerHTML = \`<div class="alert alert-error">Ошибка: \${e.message}</div>\`;
+        content.innerHTML = '<div class="alert alert-error">Ошибка: ' + e.message + '</div>';
     }
 }
 
