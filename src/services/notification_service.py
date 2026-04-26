@@ -116,7 +116,7 @@ async def check_workout_reminders(context: ContextTypes.DEFAULT_TYPE) -> None:
     from sqlalchemy.orm import joinedload
 
     now = datetime.now()
-    logger.debug(f"[reminders] Проверка напоминаний, now={now.strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"[reminders] Проверка напоминаний, now={now.strftime('%Y-%m-%d %H:%M:%S')}")
 
     async with async_session_maker() as session:
         # Находим все активные записи (где reminder_sent=False),
@@ -135,7 +135,7 @@ async def check_workout_reminders(context: ContextTypes.DEFAULT_TYPE) -> None:
         result = await session.execute(query)
         bookings = result.scalars().all()
 
-        logger.debug(f"[reminders] Найдено букингов с reminder_sent=False: {len(bookings)}")
+        logger.info(f"[reminders] Найдено букингов с reminder_sent=False: {len(bookings)}")
 
         sent_count = 0
         for booking in bookings:
@@ -144,14 +144,14 @@ async def check_workout_reminders(context: ContextTypes.DEFAULT_TYPE) -> None:
 
             # Проверяем, нужны ли вообще уведомления
             if not user.notifications_enabled:
-                logger.debug(f"[reminders] Пропуск booking#{booking.id}: уведомления выключены у {user.full_name}")
+                logger.info(f"[reminders] Пропуск booking#{booking.id}: уведомления выключены у {user.full_name}")
                 continue
 
             # Считаем сколько минут осталось до тренировки
             diff = workout.datetime - now
             minutes_left = diff.total_seconds() / 60.0
 
-            logger.debug(
+            logger.info(
                 f"[reminders] booking#{booking.id}: "
                 f"workout={workout.name} at {workout.datetime.strftime('%Y-%m-%d %H:%M')}, "
                 f"user={user.full_name}, "
