@@ -311,17 +311,26 @@
         <div id="analytics" class="tab-content">
             <div class="card">
                 <div class="card-header">
-                    <h2>📊 Тепловая карта и Аналитика</h2>
+                    <h2>📊 Тепловая карта</h2>
                 </div>
-                <p style="color:#666;margin-bottom:16px;">
-                    Заполняемость тренировок за последние 30 дней.
+                <p style="color:#666;margin-bottom:12px;">
+                    Средняя заполняемость тренировок по дням недели и времени.
                 </p>
-                <div style="display:flex; gap:10px; margin-bottom:16px;">
-                    <button class="btn btn-primary" onclick="loadAnalytics()">🔄 Обновить аналитику</button>
+
+                <!-- Выбор периода -->
+                <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:16px;">
+                    <span style="font-size:14px; color:#555; font-weight:600;">Период:</span>
+                    <button class="btn btn-sm btn-secondary analytics-period-btn" id="period7"   onclick="setAnalyticsPeriod(7)">7 дней</button>
+                    <button class="btn btn-sm btn-primary  analytics-period-btn" id="period30"  onclick="setAnalyticsPeriod(30)">30 дней</button>
+                    <button class="btn btn-sm btn-secondary analytics-period-btn" id="period60"  onclick="setAnalyticsPeriod(60)">60 дней</button>
+                    <button class="btn btn-sm btn-secondary analytics-period-btn" id="period90"  onclick="setAnalyticsPeriod(90)">90 дней</button>
+                    <button class="btn btn-sm btn-secondary analytics-period-btn" id="period180" onclick="setAnalyticsPeriod(180)">6 мес</button>
+                    <button class="btn btn-sm btn-secondary analytics-period-btn" id="period365" onclick="setAnalyticsPeriod(365)">Год</button>
+                    <button class="btn btn-sm btn-success" onclick="loadAnalytics()">🔄 Обновить</button>
                 </div>
-                
+
                 <div id="analyticsContent" style="overflow-x:auto;">
-                    <div class="loading">Нажмите обновить...</div>
+                    <div class="loading">Нажмите «Обновить»...</div>
                 </div>
             </div>
         </div>

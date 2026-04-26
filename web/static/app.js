@@ -1007,28 +1007,46 @@ async function loadBroadcastUsers() {
     const list = document.getElementById('broadcastUserList');
     list.innerHTML = '<div class="loading">Загрузка пользователей...</div>';
     try {
-        const data = await apiRequest('/users/?limit=1000');
-        if (!data.users || data.users.length === 0) {
+        // Подгружаем всех пользователей постранично (API ограничивает limit=100)
+        let allUsers = [];
+        let offset = 0;
+        const pageSize = 100;
+        while (true) {
+            const data = await apiRequest('/users/?limit=' + pageSize + '&offset=' + offset);
+            allUsers = allUsers.concat(data.users || []);
+            if (allUsers.length >= data.total) break;
+            offset += pageSize;
+        }
+
+        if (allUsers.length === 0) {
             list.innerHTML = '<div>Пользователей нет.</div>';
             return;
         }
-        
-        let html = '';
-        data.users.forEach(u => {
-            html += `
-                <div style="padding: 5px; border-bottom: 1px solid #eee; display: flex; align-items: center;">
-                    <input type="checkbox" class="broadcast-user-cb" value="${u.id}" id="user_${u.id}" style="margin-right: 10px;">
-                    <label for="user_${u.id}" style="cursor:pointer; display:flex; gap:10px; width:100%;">
-                        <span>${u.full_name} ${u.username ? '(@' + u.username + ')' : ''}</span>
-                        <span style="color:#888; font-size:12px;">[${u.role}]</span>
-                    </label>
-                </div>
-            `;
+
+        // Кнопки "выбрать всех / снять выбор"
+        let html = '<div style="padding:6px 0 10px; display:flex; gap:10px;">'
+            + '<button class="btn btn-sm btn-secondary" onclick="broadcastSelectAll(true)">✅ Выбрать всех</button>'
+            + '<button class="btn btn-sm btn-secondary" onclick="broadcastSelectAll(false)">☐ Снять выбор</button>'
+            + '</div>';
+
+        allUsers.forEach(u => {
+            const label = u.full_name + (u.username ? ' (@' + u.username + ')' : '');
+            html += '<div style="padding:5px 0; border-bottom:1px solid #eee; display:flex; align-items:center;">'
+                + '<input type="checkbox" class="broadcast-user-cb" value="' + u.id + '" id="bcast_' + u.id + '" style="margin-right:10px;">'
+                + '<label for="bcast_' + u.id + '" style="cursor:pointer; display:flex; gap:10px; width:100%;">'
+                + '<span>' + label + '</span>'
+                + '<span style="color:#888; font-size:12px;">[' + u.role + ']</span>'
+                + '</label>'
+                + '</div>';
         });
         list.innerHTML = html;
     } catch (e) {
-        list.innerHTML = `<div class="alert alert-error">Ошибка: ${e.message}</div>`;
+        list.innerHTML = '<div class="alert alert-error">Ошибка: ' + e.message + '</div>';
     }
+}
+
+function broadcastSelectAll(checked) {
+    document.querySelectorAll('.broadcast-user-cb').forEach(cb => { cb.checked = checked; });
 }
 
 async function _doSendBroadcast(targetUsers) {
@@ -1075,55 +1093,88 @@ async function sendBroadcastAll() {
 }
 
 // ─── Аналитика ──────────────────────────────────────────────────────────────
+let _analyticsDaysBack = 30;
+
+function setAnalyticsPeriod(days) {
+    _analyticsDaysBack = days;
+    // Подсветка активной кнопки
+    document.querySelectorAll('.analytics-period-btn').forEach(btn => {
+        btn.className = 'btn btn-sm btn-secondary analytics-period-btn';
+    });
+    const activeBtn = document.getElementById('period' + days);
+    if (activeBtn) activeBtn.className = 'btn btn-sm btn-primary analytics-period-btn';
+}
+
 async function loadAnalytics() {
     const content = document.getElementById('analyticsContent');
     content.innerHTML = '<div class="loading">Загрузка аналитики...</div>';
 
     try {
-        const data = await apiRequest('/analytics/heatmap');
+        const data = await apiRequest('/analytics/heatmap?days_back=' + _analyticsDaysBack);
 
         if (!data.heatmap || data.heatmap.length === 0) {
             content.innerHTML = '<div class="alert alert-info">Нет данных за этот период</div>';
             return;
         }
 
+        // Оси: строки = время, колонки = дни недели
+        const days     = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+        const daysLong = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
         const times = [...new Set(data.heatmap.map(item => item.time))].sort();
-        const days = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
 
-        let html = '<div style="margin-bottom:15px; font-size:14px; color:#555;">'
-            + 'Всего проведено тренировок за 30 дней: <b>' + data.total_workouts + '</b>'
+        // Заголовок с инфо
+        let html = '<div style="margin-bottom:12px; font-size:14px; color:#555;">'
+            + 'Всего тренировок за период: <b>' + data.total_workouts + '</b>'
+            + ' &nbsp;|&nbsp; Период: <b>' + _analyticsDaysBack + ' дней</b>'
             + '</div>'
             + '<div style="overflow-x:auto;">'
-            + '<table style="width:100%; border-collapse:collapse; min-width:600px;">'
+            + '<table style="border-collapse:collapse; min-width:500px;">'
             + '<thead><tr>'
-            + '<th style="padding:10px; border:1px solid #ddd; background:#f5f5f5; white-space:nowrap;">День \\ Время</th>'
-            + times.map(t => '<th style="padding:10px; border:1px solid #ddd; background:#f5f5f5; text-align:center;">' + t + '</th>').join('')
-            + '</tr></thead><tbody>';
+            + '<th style="padding:8px 12px; border:1px solid #ddd; background:#f0f4f8; font-size:13px; white-space:nowrap;">🕐 Время</th>';
 
+        // Колонки — дни недели
         for (let d = 0; d < 7; d++) {
-            html += '<tr><td style="padding:10px; border:1px solid #ddd; font-weight:bold; background:#fafafa; white-space:nowrap;">' + days[d] + '</td>';
+            html += '<th style="padding:8px 14px; border:1px solid #ddd; background:#f0f4f8; text-align:center; font-size:13px;" title="' + daysLong[d] + '">'
+                + days[d] + '</th>';
+        }
+        html += '</tr></thead><tbody>';
 
-            for (const t of times) {
+        // Строки — временные слоты
+        for (const t of times) {
+            html += '<tr>'
+                + '<td style="padding:8px 12px; border:1px solid #ddd; background:#fafafa; font-weight:600; font-size:13px; white-space:nowrap;">' + t + '</td>';
+
+            for (let d = 0; d < 7; d++) {
                 const cell = data.heatmap.find(x => x.weekday === d && x.time === t);
                 if (cell) {
-                    const alpha = Math.min(1, Math.max(0.1, cell.fill_rate));
-                    const bgColor = 'rgba(76, 175, 80, ' + alpha + ')';
-                    const textColor = alpha > 0.6 ? 'white' : 'black';
-                    const title = 'Проведено: ' + cell.count + '\nСред. участников: ' + cell.avg_participants.toFixed(1) + ' / ' + cell.avg_max.toFixed(1);
-                    html += '<td style="padding:10px; border:1px solid #ddd; background:' + bgColor + '; color:' + textColor + '; text-align:center;" title="' + title + '">'
-                        + '<div style="font-size:16px; font-weight:bold;">' + Math.round(cell.fill_rate * 100) + '%</div>'
-                        + '<div style="font-size:11px; opacity:0.8;">' + cell.avg_participants.toFixed(1) + ' чел.</div>'
+                    const alpha = Math.min(0.9, Math.max(0.08, cell.fill_rate));
+                    // Градиент от зелёного (мало) к красному (полно)
+                    const hue = Math.round((1 - cell.fill_rate) * 120);
+                    const bgColor = 'hsla(' + hue + ', 72%, 48%, ' + alpha + ')';
+                    const textColor = alpha > 0.55 ? 'white' : '#333';
+                    const pct = Math.round(cell.fill_rate * 100);
+                    const title = daysLong[d] + ' ' + t
+                        + '\nЗаполняемость: ' + pct + '%'
+                        + '\nСред. участников: ' + cell.avg_participants.toFixed(1) + ' / ' + cell.avg_max.toFixed(1)
+                        + '\nТренировок в выборке: ' + cell.count;
+                    html += '<td style="padding:10px 14px; border:1px solid #ddd; background:' + bgColor
+                        + '; color:' + textColor + '; text-align:center; cursor:default;" title="' + title + '">'
+                        + '<div style="font-size:15px; font-weight:700; line-height:1.2;">' + pct + '%</div>'
+                        + '<div style="font-size:11px; opacity:0.85; margin-top:2px;">'
+                        + cell.avg_participants.toFixed(1) + '&thinsp;чел.'
+                        + '</div>'
                         + '</td>';
                 } else {
-                    html += '<td style="padding:10px; border:1px solid #ddd; background:#f9f9f9; color:#ccc; text-align:center;">—</td>';
+                    html += '<td style="padding:10px 14px; border:1px solid #ddd; background:#f8f8f8; color:#ccc; text-align:center;">—</td>';
                 }
             }
             html += '</tr>';
         }
 
         html += '</tbody></table></div>'
-            + '<div style="margin-top:10px; font-size:12px; color:#888;">'
-            + '* Наведите курсор на ячейку, чтобы увидеть подробности.'
+            + '<div style="margin-top:10px; font-size:12px; color:#999;">'
+            + '* Наведите курсор на ячейку для подробностей. '
+            + 'Цвет: 🟢 мало заполнено → 🔴 полная запись.'
             + '</div>';
 
         content.innerHTML = html;
@@ -1132,6 +1183,7 @@ async function loadAnalytics() {
         content.innerHTML = '<div class="alert alert-error">Ошибка: ' + e.message + '</div>';
     }
 }
+
 
 // ─── Список тренеров (для dropdown) ─────────────────────────────────────────
 
@@ -1447,7 +1499,9 @@ window.saveGymSettings = saveGymSettings;
 window.loadBroadcastUsers = loadBroadcastUsers;
 window.sendBroadcastSelected = sendBroadcastSelected;
 window.sendBroadcastAll = sendBroadcastAll;
+window.broadcastSelectAll = broadcastSelectAll;
 window.loadAnalytics = loadAnalytics;
+window.setAnalyticsPeriod = setAnalyticsPeriod;
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
