@@ -86,7 +86,7 @@
     "trainer_workouts_menu": "Meine Trainings:",
     "trainer_section": "🏋️ Trainer-Panel",
     "admin_panel": "👑 Admin-Panel",
-    "schedule_image": "📸 Zeitplan-Bild"
+    "schedule_image": "📅 Wochenplan"
   },
   "notifications": {
     "workout_cancelled_title": "❌ Training abgesagt",
@@ -111,7 +111,7 @@
     "schedule_tomorrow": "📅 Zeitplan für Morgen",
     "schedule_week": "📅 Wochenplan",
     "users_stats": "👥 Benutzerstatistiken",
-    "schedule_image": "📸 Zeitplan-Bild",
+    "schedule_image": "📅 Wochenplan",
     "week_select_day": "📅 *Wochenplan*\n\nWählen Sie einen Tag:",
     "no_workouts_found": "Keine Trainings gefunden",
     "schedule_title": "📅 *Zeitplan: {title}*\n\nTrainings gesamt: *{count}*",
@@ -145,17 +145,17 @@
     "no_trainer_btn": "🚫 Ohne Trainer",
     "trainer_assigned": "✅ Trainer zugewiesen: *{name}*\n\n*{workout}* {datetime}",
     "to_workout": "« Zum Training",
-    "image_title": "📸 *Zeitplan-Bild*",
+    "image_title": "📅 *Wochenplan*",
     "image_loaded": "✅ Bild hochgeladen",
     "image_not_loaded": "❌ Bild nicht hochgeladen",
     "image_upload_hint": "Um ein neues Bild hochzuladen, drücken Sie die Taste unten und senden Sie das Bild in den Chat.",
     "image_upload_btn": "📤 Bild hochladen",
     "image_delete_btn": "🗑️ Bild löschen",
-    "image_upload_prompt": "📸 *Zeitplan-Bild hochladen*\n\nSenden Sie ein Bild in diesen Chat. Das alte Bild wird entfernt.",
+    "image_upload_prompt": "📅 *Wochenplan hochladen*\n\nSenden Sie ein Bild in diesen Chat. Das alte Bild wird entfernt.",
     "image_cancel": "« Abbrechen",
     "image_deleted": "🗑️ *Bild gelöscht*",
-    "image_uploaded": "✅ *Zeitplan-Bild erfolgreich hochgeladen!*",
-    "image_not_uploaded": "📸 *Zeitplan-Bild*\n\nBild noch nicht hochgeladen."
+    "image_uploaded": "✅ *Wochenplan erfolgreich hochgeladen!*",
+    "image_not_uploaded": "📅 *Wochenplan*\n\nBild noch nicht hochgeladen."
   },
   "trainer": {
     "menu": "🤸‍♀️ Trainer-Menü",

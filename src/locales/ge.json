@@ -86,7 +86,7 @@
     "trainer_workouts_menu": "ჩემი ვარჯიშები:",
     "trainer_section": "🏋️ ტრენერი",
     "admin_panel": "👑 ადმინ პანელი",
-    "schedule_image": "📸 განრიგის სურათი"
+    "schedule_image": "📅 კვირის განრიგი"
   },
   "notifications": {
     "workout_cancelled_title": "❌ ვარჯიში გაუქმდა",
@@ -111,7 +111,7 @@
     "schedule_tomorrow": "📅 ხვალინდელი განრიგი",
     "schedule_week": "📅 კვირის განრიგი",
     "users_stats": "👥 მომხმარებლების სტატისტიკა",
-    "schedule_image": "📸 განრიგის სურათი",
+    "schedule_image": "📅 კვირის განრიგი",
     "week_select_day": "📅 *კვირის განრიგი*\n\nაირჩიეთ დღე:",
     "no_workouts_found": "ვარჯიშები ვერ მოიძებნა",
     "schedule_title": "📅 *განრიგი: {title}*\n\nსულ ვარჯიშები: *{count}*",
@@ -145,17 +145,17 @@
     "no_trainer_btn": "🚫 მწვრთნელის გარეშე",
     "trainer_assigned": "✅ მწვრთნელი დანიშნულია: *{name}*\n\n*{workout}* {datetime}",
     "to_workout": "« ვარჯიშთან",
-    "image_title": "📸 *განრიგის სურათი*",
+    "image_title": "📅 *კვირის განრიგი*",
     "image_loaded": "✅ სურათი ატვირთულია",
     "image_not_loaded": "❌ სურათი არ არის ატვირთული",
     "image_upload_hint": "ახალი სურათის ასატვირთად დააჭირეთ ქვემოთ ღილაკს, შემდეგ გამოაგზავნეთ სურათი ჩატში.",
     "image_upload_btn": "📤 სურათის ატვირთვა",
     "image_delete_btn": "🗑️ სურათის წაშლა",
-    "image_upload_prompt": "📸 *განრიგის სურათის ატვირთვა*\n\nგამოაგზავნეთ სურათი ამ ჩატში. ძველი სურათი წაიშლება.",
+    "image_upload_prompt": "📅 *კვირის განრიგის ატვირთვა*\n\nგამოაგზავნეთ სურათი ამ ჩატში. ძველი სურათი წაიშლება.",
     "image_cancel": "« გაუქმება",
     "image_deleted": "🗑️ *სურათი წაშლილია*",
-    "image_uploaded": "✅ *განრიგის სურათი წარმატებით ატვირთულია!*",
-    "image_not_uploaded": "📸 *განრიგის სურათი*\n\nსურათი ჯერ არ არის ატვირთული."
+    "image_uploaded": "✅ *კვირის განრიგი წარმატებით აიტვირთა!*",
+    "image_not_uploaded": "📅 *კვირის განრიგი*\n\nსურათი ჯერ არ არის ატვირთული."
   },
   "trainer": {
     "menu": "🤸‍♀️ მწვრთნელის მენიუ",
