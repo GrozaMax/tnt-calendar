@@ -80,7 +80,7 @@ def main_menu_keyboard(lang: str = 'ru', is_admin: bool = False, is_trainer: boo
     if is_admin:
         keyboard = [
             [InlineKeyboardButton(get_text('reply_kb.trainer_section', lang), callback_data='trainer_menu')],
-            [InlineKeyboardButton("👑 Админ-панель", callback_data='admin_menu')],
+            [InlineKeyboardButton(get_text('reply_kb.admin_panel', lang), callback_data='admin_menu')],
             [InlineKeyboardButton(get_text('menu.help', lang), callback_data='help')],
         ]
     elif is_trainer:
@@ -281,7 +281,7 @@ def settings_keyboard(lang: str = 'ru', notifications_enabled: bool = True, remi
         else get_text('settings.btn_enable_notifications', lang)
     )
     
-    remind_text = f"⏰ Напоминание: {reminder_minutes} мин" if lang == 'ru' else f"⏰ Reminder: {reminder_minutes} min"
+    remind_text = get_text('settings.btn_reminder_time', lang, minutes=reminder_minutes)
     
     keyboard = [
         [InlineKeyboardButton(
@@ -309,7 +309,7 @@ def settings_keyboard(lang: str = 'ru', notifications_enabled: bool = True, remi
     return InlineKeyboardMarkup(keyboard)
 
 
-def language_selection_keyboard() -> InlineKeyboardMarkup:
+def language_selection_keyboard(lang: str = 'ru') -> InlineKeyboardMarkup:
     """Клавиатура выбора языка"""
     keyboard = [
         [InlineKeyboardButton("🇬🇪 ქართული", callback_data='set_lang:ge')],
@@ -317,7 +317,7 @@ def language_selection_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton("🇷🇺 Русский", callback_data='set_lang:ru')],
         [InlineKeyboardButton("🇺🇦 Українська", callback_data='set_lang:ua')],
         [InlineKeyboardButton("🇩🇪 Deutsch", callback_data='set_lang:de')],
-        [InlineKeyboardButton("◀️ Назад / Back", callback_data='settings')]
+        [InlineKeyboardButton(get_text('common.back_back', lang), callback_data='settings')]
     ]
     return InlineKeyboardMarkup(keyboard)
 

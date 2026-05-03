@@ -45,7 +45,8 @@
     "not_your_workout": "❌ Das ist nicht Ihr Training",
     "past_workout": "❌ Ein vergangenes Training kann nicht gebucht werden",
     "limit_exceeded": "❌ *Buchungslimit überschritten!*\n\nSie sind bereits für {max} Trainings an diesem Tag angemeldet.\n\nVersuchen Sie es an einem anderen Tag oder stornieren Sie eine aktuelle Buchung.",
-    "no_free_slots": "❌ *Keine Plätze verfügbar!*\n\nDieses Training hat bereits {max} Teilnehmer (Maximum).\n\nVersuchen Sie eine andere Zeit oder achten Sie auf Stornierungen."
+    "no_free_slots": "❌ *Keine Plätze verfügbar!*\n\nDieses Training hat bereits {max} Teilnehmer (Maximum).\n\nVersuchen Sie eine andere Zeit oder achten Sie auf Stornierungen.",
+    "guests_count": "👥 Gäste: {count}"
   },
   "my_bookings": {
     "title": "📋 Meine Buchungen",
@@ -60,7 +61,10 @@
     "btn_disable_notifications": "🔕 Benachrichtigungen aus",
     "btn_enable_notifications": "🔔 Benachrichtigungen an",
     "toggled_on": "✅ Benachrichtigungen eingeschaltet",
-    "toggled_off": "✅ Benachrichtigungen ausgeschaltet"
+    "toggled_off": "✅ Benachrichtigungen ausgeschaltet",
+    "btn_reminder_time": "⏰ Erinnerung: {minutes} Min",
+    "select_language": "🌐 Sprache wählen",
+    "current_language": "Aktuelle Sprache: {language}"
   },
   "common": {
     "welcome": "👋 Hallo, {name}!\n\nIch bin der CrossFit Hub Bot — Buchungen und Zeitplan.\n\n📝 Bis zu *{max_per_day}* aktive Buchungen pro Kalendertag (Limit setzt der Admin).\n📅 Zeitplan: nächste 7 Tage; vergangene Sessions heute werden ausgeblendet.\n\nWählen Sie unten eine Aktion:",
@@ -71,7 +75,8 @@
     "error": "❌ Ein Fehler ist aufgetreten. Versuchen Sie es später erneut.",
     "user_not_found": "❌ Benutzer nicht gefunden. Verwenden Sie /start zur Registrierung.",
     "athlete": "Athlet",
-    "error_processing": "❌ Bei der Verarbeitung Ihrer Anfrage ist ein Fehler aufgetreten. Bitte versuchen Sie es später erneut."
+    "error_processing": "❌ Bei der Verarbeitung Ihrer Anfrage ist ein Fehler aufgetreten. Bitte versuchen Sie es später erneut.",
+    "back_back": "◀️ Zurück"
   },
   "reply_kb": {
     "book_workout": "📝 Training buchen",
@@ -81,7 +86,7 @@
     "trainer_workouts_menu": "Meine Trainings:",
     "trainer_section": "🏋️ Trainer-Panel",
     "admin_panel": "👑 Admin-Panel",
-    "schedule_image": "📸 Zeitplan-Bild"
+    "schedule_image": "📅 Wochenplan"
   },
   "notifications": {
     "workout_cancelled_title": "❌ Training abgesagt",
@@ -92,7 +97,9 @@
     "booking_cancelled_title": "🚫 Buchung storniert",
     "booking_cancelled_body": "Athlet: *{athlete}*\nTraining: *{workout}*\nDatum/Zeit: *{datetime}*",
     "removed_by_trainer_title": "🚫 Vom Training entfernt",
-    "removed_by_trainer_body": "Der Trainer hat Sie vom Training *{name}* {datetime} entfernt."
+    "removed_by_trainer_body": "Der Trainer hat Sie vom Training *{name}* {datetime} entfernt.",
+    "workout_reminder_title": "🔔 Erinnerung an das Training",
+    "workout_reminder_body": "Das Training *{name}* beginnt um {datetime}."
   },
   "admin": {
     "menu": "👑 Admin-Menü",
@@ -104,7 +111,7 @@
     "schedule_tomorrow": "📅 Zeitplan für Morgen",
     "schedule_week": "📅 Wochenplan",
     "users_stats": "👥 Benutzerstatistiken",
-    "schedule_image": "📸 Zeitplan-Bild",
+    "schedule_image": "📅 Wochenplan",
     "week_select_day": "📅 *Wochenplan*\n\nWählen Sie einen Tag:",
     "no_workouts_found": "Keine Trainings gefunden",
     "schedule_title": "📅 *Zeitplan: {title}*\n\nTrainings gesamt: *{count}*",
@@ -138,17 +145,17 @@
     "no_trainer_btn": "🚫 Ohne Trainer",
     "trainer_assigned": "✅ Trainer zugewiesen: *{name}*\n\n*{workout}* {datetime}",
     "to_workout": "« Zum Training",
-    "image_title": "📸 *Zeitplan-Bild*",
+    "image_title": "📅 *Wochenplan*",
     "image_loaded": "✅ Bild hochgeladen",
     "image_not_loaded": "❌ Bild nicht hochgeladen",
     "image_upload_hint": "Um ein neues Bild hochzuladen, drücken Sie die Taste unten und senden Sie das Bild in den Chat.",
     "image_upload_btn": "📤 Bild hochladen",
     "image_delete_btn": "🗑️ Bild löschen",
-    "image_upload_prompt": "📸 *Zeitplan-Bild hochladen*\n\nSenden Sie ein Bild in diesen Chat. Das alte Bild wird entfernt.",
+    "image_upload_prompt": "📅 *Wochenplan hochladen*\n\nSenden Sie ein Bild in diesen Chat. Das alte Bild wird entfernt.",
     "image_cancel": "« Abbrechen",
     "image_deleted": "🗑️ *Bild gelöscht*",
-    "image_uploaded": "✅ *Zeitplan-Bild erfolgreich hochgeladen!*",
-    "image_not_uploaded": "📸 *Zeitplan-Bild*\n\nBild noch nicht hochgeladen."
+    "image_uploaded": "✅ *Wochenplan erfolgreich hochgeladen!*",
+    "image_not_uploaded": "📅 *Wochenplan*\n\nBild noch nicht hochgeladen."
   },
   "trainer": {
     "menu": "🤸‍♀️ Trainer-Menü",

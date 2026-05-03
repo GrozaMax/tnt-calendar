@@ -101,8 +101,9 @@ async def notify_athlete_workout_reminder(bot: Bot, athlete_telegram_id: int,
                                           workout_name: str, workout_datetime: str,
                                           athlete_lang: str = 'ru') -> None:
     """Уведомить атлета о предстоящей тренировке"""
-    title = "Напоминание о тренировке" if athlete_lang == 'ru' else "Workout Reminder"
-    body = f"Тренировка *{workout_name}* начнется в {workout_datetime}" if athlete_lang == 'ru' else f"Workout *{workout_name}* will start at {workout_datetime}"
+    title = get_text('notifications.workout_reminder_title', athlete_lang)
+    body = get_text('notifications.workout_reminder_body', athlete_lang,
+                    name=workout_name, datetime=workout_datetime)
     try:
         await bot.send_message(chat_id=athlete_telegram_id, text=f"*{title}*\n\n{body}", parse_mode='Markdown')
     except TelegramError as e:
@@ -111,15 +112,32 @@ async def notify_athlete_workout_reminder(bot: Bot, athlete_telegram_id: int,
 
 async def check_workout_reminders(context: ContextTypes.DEFAULT_TYPE) -> None:
     """Фоновая задача проверки тренировок и отправки напоминаний"""
-    from sqlalchemy import select
+    from sqlalchemy import select, update
     from sqlalchemy.orm import joinedload
-    import asyncio
 
     now = datetime.now()
 
     async with async_session_maker() as session:
-        # Находим все активные записи (где reminder_sent=False),
-        # подгружаем тренировку и юзера
+        # 1) Быстрая очистка: пометить все прошедшие тренировки как отправленные (без загрузки в Python)
+        from src.models import Workout
+        past_stmt = (
+            update(Booking)
+            .where(
+                Booking.status == BookingStatus.ACTIVE,
+                Booking.reminder_sent == False,
+                Booking.workout_id.in_(
+                    select(Workout.id).where(Workout.datetime <= now)
+                )
+            )
+            .values(reminder_sent=True)
+        )
+        past_result = await session.execute(past_stmt)
+        past_count = past_result.rowcount
+        if past_count > 0:
+            await session.commit()
+            logger.info(f"[reminders] ⏭ Помечено {past_count} старых букингов как отправленные")
+
+        # 2) Находим активные записи на будущие тренировки (reminder_sent=False)
         query = (
             select(Booking)
             .options(
@@ -134,20 +152,22 @@ async def check_workout_reminders(context: ContextTypes.DEFAULT_TYPE) -> None:
         result = await session.execute(query)
         bookings = result.scalars().all()
 
+        if not bookings:
+            return
+
+        logger.info(f"[reminders] Букингов к проверке: {len(bookings)}")
+
+        sent_count = 0
         for booking in bookings:
             user = booking.user
             workout = booking.workout
 
-            # Проверяем, нужны ли вообще уведомления
             if not user.notifications_enabled:
                 continue
 
-            # Считаем сколько минут осталось до тренировки
-            diff = workout.datetime - now
-            minutes_left = diff.total_seconds() / 60.0
+            minutes_left = (workout.datetime - now).total_seconds() / 60.0
 
-            # Если время до тренировки меньше или равно настройке напоминания (плюс небольшой запас на опоздание джоба)
-            # и тренировка еще не прошла
+            # Если время до тренировки в пределах окна напоминания — отправляем
             if 0 < minutes_left <= user.reminder_minutes:
                 time_str = workout.datetime.strftime('%H:%M')
                 await notify_athlete_workout_reminder(
@@ -157,8 +177,10 @@ async def check_workout_reminders(context: ContextTypes.DEFAULT_TYPE) -> None:
                     workout_datetime=time_str,
                     athlete_lang=user.language
                 )
-                
-                # Отмечаем как отправленное
                 booking.reminder_sent = True
-        
-        await session.commit()
+                sent_count += 1
+                logger.info(f"[reminders] ✅ {user.full_name} → {workout.name} в {time_str}")
+
+        if sent_count > 0:
+            await session.commit()
+            logger.info(f"[reminders] Отправлено напоминаний: {sent_count}")

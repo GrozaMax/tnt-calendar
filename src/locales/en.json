@@ -45,7 +45,8 @@
     "not_your_workout": "❌ This is not your workout",
     "past_workout": "❌ Cannot book a workout in the past",
     "limit_exceeded": "❌ *Booking limit exceeded!*\n\nYou are already booked for {max} workouts on this day.\n\nTry booking on a different day or cancel one of your current bookings.",
-    "no_free_slots": "❌ *No slots available!*\n\nThis workout already has {max} participants (maximum).\n\nTry a different time or watch for cancellations."
+    "no_free_slots": "❌ *No slots available!*\n\nThis workout already has {max} participants (maximum).\n\nTry a different time or watch for cancellations.",
+    "guests_count": "👥 Guests: {count}"
   },
   "my_bookings": {
     "title": "📋 My Bookings",
@@ -60,7 +61,10 @@
     "btn_disable_notifications": "🔕 Turn off notifications",
     "btn_enable_notifications": "🔔 Turn on notifications",
     "toggled_on": "✅ Notifications enabled",
-    "toggled_off": "✅ Notifications disabled"
+    "toggled_off": "✅ Notifications disabled",
+    "btn_reminder_time": "⏰ Reminder: {minutes} min",
+    "select_language": "🌐 Select Language",
+    "current_language": "Current language: {language}"
   },
   "common": {
     "welcome": "👋 Hello, {name}!\n\nI'm the CrossFit Hub bot — workouts and schedule.\n\n📝 Up to *{max_per_day}* active bookings per calendar day (set by your gym admin).\n📅 Schedule shows the next 7 days; today's past sessions are hidden.\n\nChoose an action below:",
@@ -71,7 +75,8 @@
     "error": "❌ An error occurred. Try again later.",
     "user_not_found": "❌ User not found. Use /start to register.",
     "athlete": "Athlete",
-    "error_processing": "❌ An error occurred while processing your request. Please try again later."
+    "error_processing": "❌ An error occurred while processing your request. Please try again later.",
+    "back_back": "◀️ Back"
   },
   "reply_kb": {
     "book_workout": "📝 Sign Up for a Workout",
@@ -81,7 +86,7 @@
     "trainer_workouts_menu": "My Workouts:",
     "trainer_section": "🏋️ Trainer Panel",
     "admin_panel": "👑 Admin Panel",
-    "schedule_image": "📸 Schedule Image"
+    "schedule_image": "📅 Weekly schedule"
   },
   "notifications": {
     "workout_cancelled_title": "❌ Workout Cancelled",
@@ -92,7 +97,9 @@
     "booking_cancelled_title": "🚫 Booking Cancelled",
     "booking_cancelled_body": "Athlete: *{athlete}*\nWorkout: *{workout}*\nDate/Time: *{datetime}*",
     "removed_by_trainer_title": "🚫 Removed from Workout",
-    "removed_by_trainer_body": "The trainer has removed you from workout *{name}* {datetime}."
+    "removed_by_trainer_body": "The trainer has removed you from workout *{name}* {datetime}.",
+    "workout_reminder_title": "🔔 Workout Reminder",
+    "workout_reminder_body": "Workout *{name}* will start at {datetime}."
   },
   "admin": {
     "menu": "👑 Admin Menu",
@@ -104,7 +111,7 @@
     "schedule_tomorrow": "📅 Schedule for Tomorrow",
     "schedule_week": "📅 Schedule for the Week",
     "users_stats": "👥 User Statistics",
-    "schedule_image": "📸 Schedule Image",
+    "schedule_image": "📅 Weekly schedule",
     "week_select_day": "📅 *Weekly Schedule*\n\nSelect a day:",
     "no_workouts_found": "No workouts found",
     "schedule_title": "📅 *Schedule: {title}*\n\nTotal workouts: *{count}*",
@@ -138,17 +145,17 @@
     "no_trainer_btn": "🚫 No trainer",
     "trainer_assigned": "✅ Trainer assigned: *{name}*\n\n*{workout}* {datetime}",
     "to_workout": "« To workout",
-    "image_title": "📸 *Schedule Image*",
+    "image_title": "📅 *Weekly schedule*",
     "image_loaded": "✅ Image uploaded",
     "image_not_loaded": "❌ Image not uploaded",
     "image_upload_hint": "To upload a new image, press the button below, then send the image to this chat.",
     "image_upload_btn": "📤 Upload Image",
     "image_delete_btn": "🗑️ Delete Image",
-    "image_upload_prompt": "📸 *Upload Schedule Image*\n\nSend an image to this chat. The old image will be removed.",
+    "image_upload_prompt": "📅 *Upload Weekly schedule*\n\nSend an image to this chat. The old image will be removed.",
     "image_cancel": "« Cancel",
     "image_deleted": "🗑️ *Image deleted*",
-    "image_uploaded": "✅ *Schedule image uploaded successfully!*",
-    "image_not_uploaded": "📸 *Schedule Image*\n\nImage not yet uploaded."
+    "image_uploaded": "✅ *Weekly schedule uploaded successfully!*",
+    "image_not_uploaded": "📅 *Weekly schedule*\n\nImage not yet uploaded."
   },
   "trainer": {
     "menu": "🤸‍♀️ Trainer Menu",

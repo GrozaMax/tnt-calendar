@@ -389,11 +389,11 @@ class TelegramBot:
         await init_db()
         logger.info("База данных инициализирована")
         
-        # Запускаем джоб напоминаний (каждые 5 минут)
+        # Запускаем джоб напоминаний каждую минуту
         job_queue = application.job_queue
         if job_queue:
-            job_queue.run_repeating(check_workout_reminders, interval=300, first=10)
-            logger.info("Джоб отправки напоминаний запущен")
+            job_queue.run_repeating(check_workout_reminders, interval=60, first=10)
+            logger.info("Джоб напоминаний запущен (каждые 60 сек)")
     
     def run(self):
         """Запуск бота"""
