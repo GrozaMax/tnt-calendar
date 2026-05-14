@@ -3,7 +3,8 @@
 """
 import enum
 from typing import TYPE_CHECKING
-from sqlalchemy import String, Integer, ForeignKey, Enum, UniqueConstraint, Boolean
+from sqlalchemy import String, Integer, ForeignKey, Enum, UniqueConstraint, Boolean, BigInteger
+from typing import Optional as Opt
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.base import Base, TimestampMixin
@@ -50,6 +51,11 @@ class Booking(Base, TimestampMixin):
         Boolean,
         default=False,
         nullable=False
+    )
+    reminder_message_id: Mapped[Opt[int]] = mapped_column(
+        BigInteger,
+        nullable=True,
+        default=None
     )
     
     

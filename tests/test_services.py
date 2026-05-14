@@ -398,16 +398,17 @@ class TestNotificationService:
             yield db_session
 
         with patch("src.services.notification_service.async_session_maker", _mock_session_maker):
-            with patch("src.services.notification_service.notify_athlete_workout_reminder", new_callable=AsyncMock) as mock_notify:
+            with patch("src.services.notification_service.notify_athlete_workout_reminder", new_callable=AsyncMock, return_value=12345) as mock_notify:
                 await check_workout_reminders(mock_context)
                 
                 # Уведомление должно быть отправлено, т.к. 45 минут < 60 минут (настройка)
                 mock_notify.assert_called_once()
                 assert mock_notify.call_args[1]["athlete_telegram_id"] == test_athlete.telegram_id
                 
-        # Проверяем что в БД флаг изменился
+        # Проверяем что в БД флаг и message_id изменились
         await db_session.refresh(booking)
         assert booking.reminder_sent is True
+        assert booking.reminder_message_id == 12345
 
     @pytest.mark.asyncio
     async def test_check_workout_reminders_too_early(self, db_session, test_athlete, test_workout, booking_repo):
@@ -438,4 +439,218 @@ class TestNotificationService:
                 
         await db_session.refresh(booking)
         assert booking.reminder_sent is False
+        assert booking.reminder_message_id is None
+
+    @pytest.mark.asyncio
+    async def test_notify_athlete_workout_reminder_returns_message_id(self):
+        """Тест: notify_athlete_workout_reminder возвращает message_id отправленного сообщения"""
+        from unittest.mock import AsyncMock, MagicMock
+        from src.services.notification_service import notify_athlete_workout_reminder
+
+        mock_bot = AsyncMock()
+        mock_message = MagicMock()
+        mock_message.message_id = 77777
+        mock_bot.send_message.return_value = mock_message
+
+        result = await notify_athlete_workout_reminder(
+            bot=mock_bot,
+            athlete_telegram_id=333333,
+            workout_name="CrossFit",
+            workout_datetime="10:00",
+            athlete_lang="ru"
+        )
+
+        assert result == 77777
+        mock_bot.send_message.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_notify_athlete_workout_reminder_returns_none_on_error(self):
+        """Тест: notify_athlete_workout_reminder возвращает None при ошибке Telegram"""
+        from unittest.mock import AsyncMock
+        from telegram.error import TelegramError
+        from src.services.notification_service import notify_athlete_workout_reminder
+
+        mock_bot = AsyncMock()
+        mock_bot.send_message.side_effect = TelegramError("Chat not found")
+
+        result = await notify_athlete_workout_reminder(
+            bot=mock_bot,
+            athlete_telegram_id=999999,
+            workout_name="CrossFit",
+            workout_datetime="10:00"
+        )
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_delete_expired_reminders(self, db_session, test_athlete, test_workout, booking_repo):
+        """Тест: сообщение-напоминание удаляется после начала тренировки"""
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from src.services.notification_service import _delete_expired_reminders
+
+        # Тренировка уже началась (в прошлом)
+        test_workout.datetime = datetime.now() - timedelta(minutes=5)
+        test_athlete.notifications_enabled = True
+        await db_session.commit()
+
+        booking = await booking_repo.create(test_athlete.id, test_workout.id)
+        booking.reminder_sent = True
+        booking.reminder_message_id = 55555
+        await db_session.commit()
+
+        mock_context = MagicMock()
+        mock_context.bot = AsyncMock()
+
+        @asynccontextmanager
+        async def _mock_session_maker():
+            yield db_session
+
+        with patch("src.services.notification_service.async_session_maker", _mock_session_maker):
+            await _delete_expired_reminders(mock_context)
+
+        # Проверяем что delete_message был вызван
+        mock_context.bot.delete_message.assert_called_once_with(
+            chat_id=test_athlete.telegram_id,
+            message_id=55555
+        )
+
+        # Проверяем что reminder_message_id обнулился
+        await db_session.refresh(booking)
+        assert booking.reminder_message_id is None
+
+    @pytest.mark.asyncio
+    async def test_delete_expired_reminders_skips_no_message_id(self, db_session, test_athlete, test_workout, booking_repo):
+        """Тест: букинги без reminder_message_id пропускаются при удалении"""
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from src.services.notification_service import _delete_expired_reminders
+
+        # Тренировка уже началась
+        test_workout.datetime = datetime.now() - timedelta(minutes=5)
+        test_athlete.notifications_enabled = True
+        await db_session.commit()
+
+        booking = await booking_repo.create(test_athlete.id, test_workout.id)
+        booking.reminder_sent = True
+        booking.reminder_message_id = None  # Нет message_id (старое напоминание)
+        await db_session.commit()
+
+        mock_context = MagicMock()
+        mock_context.bot = AsyncMock()
+
+        @asynccontextmanager
+        async def _mock_session_maker():
+            yield db_session
+
+        with patch("src.services.notification_service.async_session_maker", _mock_session_maker):
+            await _delete_expired_reminders(mock_context)
+
+        # delete_message НЕ должен быть вызван
+        mock_context.bot.delete_message.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_delete_expired_reminders_handles_telegram_error(self, db_session, test_athlete, test_workout, booking_repo):
+        """Тест: ошибка при удалении сообщения не ломает процесс"""
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from telegram.error import TelegramError
+        from src.services.notification_service import _delete_expired_reminders
+
+        # Тренировка уже началась
+        test_workout.datetime = datetime.now() - timedelta(minutes=5)
+        test_athlete.notifications_enabled = True
+        await db_session.commit()
+
+        booking = await booking_repo.create(test_athlete.id, test_workout.id)
+        booking.reminder_sent = True
+        booking.reminder_message_id = 99999
+        await db_session.commit()
+
+        mock_context = MagicMock()
+        mock_context.bot = AsyncMock()
+        mock_context.bot.delete_message.side_effect = TelegramError("Message not found")
+
+        @asynccontextmanager
+        async def _mock_session_maker():
+            yield db_session
+
+        with patch("src.services.notification_service.async_session_maker", _mock_session_maker):
+            # Не должно бросить исключение
+            await _delete_expired_reminders(mock_context)
+
+        # Несмотря на ошибку, message_id должен быть обнулён
+        await db_session.refresh(booking)
+        assert booking.reminder_message_id is None
+
+    @pytest.mark.asyncio
+    async def test_delete_expired_reminders_future_workout_not_deleted(self, db_session, test_athlete, test_workout, booking_repo):
+        """Тест: напоминание для будущей тренировки не удаляется"""
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from src.services.notification_service import _delete_expired_reminders
+
+        # Тренировка ещё не началась (через 30 минут)
+        test_workout.datetime = datetime.now() + timedelta(minutes=30)
+        test_athlete.notifications_enabled = True
+        await db_session.commit()
+
+        booking = await booking_repo.create(test_athlete.id, test_workout.id)
+        booking.reminder_sent = True
+        booking.reminder_message_id = 88888
+        await db_session.commit()
+
+        mock_context = MagicMock()
+        mock_context.bot = AsyncMock()
+
+        @asynccontextmanager
+        async def _mock_session_maker():
+            yield db_session
+
+        with patch("src.services.notification_service.async_session_maker", _mock_session_maker):
+            await _delete_expired_reminders(mock_context)
+
+        # delete_message НЕ должен быть вызван — тренировка ещё не началась
+        mock_context.bot.delete_message.assert_not_called()
+
+        # reminder_message_id сохраняется
+        await db_session.refresh(booking)
+        assert booking.reminder_message_id == 88888
+
+    @pytest.mark.asyncio
+    async def test_check_reminders_saves_message_id(self, db_session, test_athlete, workout_repo, test_trainer, booking_repo):
+        """Тест: check_workout_reminders сохраняет message_id, а при старте тренировки удаляет сообщение"""
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from src.services.notification_service import check_workout_reminders
+
+        # Создаём тренировку через 30 минут
+        workout = await workout_repo.create(
+            name="Reminder Test WOD",
+            datetime=datetime.now() + timedelta(minutes=30),
+            max_participants=10,
+            trainer_id=test_trainer.id
+        )
+        await db_session.commit()
+
+        test_athlete.notifications_enabled = True
+        test_athlete.reminder_minutes = 60
+        await db_session.commit()
+
+        booking = await booking_repo.create(test_athlete.id, workout.id)
+        booking.reminder_sent = False
+        booking.reminder_message_id = None
+        await db_session.commit()
+
+        mock_context = MagicMock()
+        mock_context.bot = AsyncMock()
+
+        @asynccontextmanager
+        async def _mock_session_maker():
+            yield db_session
+
+        # Шаг 1: отправка напоминания — notify возвращает message_id=42042
+        with patch("src.services.notification_service.async_session_maker", _mock_session_maker):
+            with patch("src.services.notification_service.notify_athlete_workout_reminder",
+                       new_callable=AsyncMock, return_value=42042):
+                await check_workout_reminders(mock_context)
+
+        await db_session.refresh(booking)
+        assert booking.reminder_sent is True
+        assert booking.reminder_message_id == 42042
 
