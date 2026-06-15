@@ -165,6 +165,7 @@ _API_MODULES = [
     'web.api.auth',
     'web.api.broadcast',
     'web.api.analytics',
+    'web.api.workout_trainers',
 ]
 
 

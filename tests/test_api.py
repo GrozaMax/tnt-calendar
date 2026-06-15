@@ -384,3 +384,98 @@ class TestScheduleTemplateAPI:
         )
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
+
+class TestWorkoutTrainersAPI:
+    """Тесты API привязки тренеров по умолчанию"""
+
+    pytestmark = pytest.mark.asyncio
+
+    async def test_get_workout_trainers(self, api_client_admin):
+        response = await api_client_admin.get("/api/workout-trainers")
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert "workout_names" in data
+        assert "mappings" in data
+        assert "CrossFit" in data["workout_names"]
+
+    async def test_set_and_delete_workout_trainer(self, api_client_admin, test_trainer):
+        # Устанавливаем тренера
+        response = await api_client_admin.post(
+            "/api/workout-trainers",
+            json={"workout_name": "CrossFit", "trainer_id": test_trainer.id}
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["status"] == "success"
+
+        # Проверяем, что привязалось
+        response = await api_client_admin.get("/api/workout-trainers")
+        assert response.json()["mappings"]["CrossFit"] == test_trainer.id
+
+        # Удаляем привязку
+        response = await api_client_admin.post(
+            "/api/workout-trainers",
+            json={"workout_name": "CrossFit", "trainer_id": None}
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["status"] == "deleted"
+
+        # Проверяем, что очистилось
+        response = await api_client_admin.get("/api/workout-trainers")
+        assert "CrossFit" not in response.json()["mappings"]
+
+    async def test_set_workout_trainer_invalid_user(self, api_client_admin, test_athlete):
+        # Попытка назначить атлета тренером
+        response = await api_client_admin.post(
+            "/api/workout-trainers",
+            json={"workout_name": "CrossFit", "trainer_id": test_athlete.id}
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    async def test_set_workout_trainer_forbidden_trainer(self, api_client_trainer, test_trainer):
+        # Попытка тренера настроить привязки
+        response = await api_client_trainer.post(
+            "/api/workout-trainers",
+            json={"workout_name": "CrossFit", "trainer_id": test_trainer.id}
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    async def test_bulk_create_uses_default_trainer(self, api_client_admin, test_trainer, test_admin):
+        # Назначаем test_trainer тренером по умолчанию для CrossFit
+        await api_client_admin.post(
+            "/api/workout-trainers",
+            json={"workout_name": "CrossFit", "trainer_id": test_trainer.id}
+        )
+
+        # Очищаем тренировки
+        await api_client_admin.post("/api/workouts/clear-all")
+
+        # Загружаем шаблон
+        await api_client_admin.post("/api/schedule-template/seed-from-file?force=true")
+
+        # Создаем расписание на 1 неделю, передав test_admin как trainer_id по умолчанию
+        response = await api_client_admin.post(
+            "/api/workouts/bulk-create",
+            json={"weeks": 1, "trainer_id": test_admin.id}
+        )
+        assert response.status_code == status.HTTP_200_OK
+        
+        # Загружаем созданные тренировки
+        response = await api_client_admin.get("/api/workouts/")
+        assert response.status_code == status.HTTP_200_OK
+        workouts = response.json()
+        assert len(workouts) > 0
+        
+        # Проверяем, что тренировки с именем "CrossFit" получили test_trainer,
+        # а остальные (например, Weightlifting или Yoga) получили test_admin
+        crossfit_workouts = [w for w in workouts if w["name"] == "CrossFit"]
+        other_workouts = [w for w in workouts if w["name"] != "CrossFit"]
+        
+        assert len(crossfit_workouts) > 0
+        for w in crossfit_workouts:
+            assert w["trainer_id"] == test_trainer.id
+            
+        assert len(other_workouts) > 0
+        for w in other_workouts:
+            assert w["trainer_id"] == test_admin.id
+
+

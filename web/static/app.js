@@ -718,6 +718,8 @@ function switchTab(tabName) {
         loadWeekWorkouts();
     } else if (tabName === 'users') {
         loadUsers();
+    } else if (tabName === 'trainers') {
+        loadTrainersMapping();
     } else if (tabName === 'template') {
         loadTemplate();
     } else if (tabName === 'scheduleImage') {
@@ -1505,88 +1507,205 @@ window.setAnalyticsPeriod = setAnalyticsPeriod;
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
-    // Проверяем авторизацию
-    if (!authToken) {
-        showLoginPage();
-        return;
-    }
-    
-    // Восстанавливаем данные пользователя
-    currentUser = JSON.parse(localStorage.getItem('currentUser'));
-    
-    if (!currentUser) {
-        showLoginPage();
-        return;
-    }
+    try {
+        // Проверяем авторизацию
+        if (!authToken) {
+            showLoginPage();
+            return;
+        }
+        
+        // Восстанавливаем данные пользователя
+        try {
+            currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        } catch (err) {
+            console.error('Error parsing currentUser:', err);
+            logout();
+            return;
+        }
+        
+        if (!currentUser) {
+            showLoginPage();
+            return;
+        }
 
-    updateUserInfo();
+        updateUserInfo();
 
-    // Загружаем список тренеров для dropdown (только для admin)
-    loadTrainers();
+        // Загружаем список тренеров для dropdown (только для admin)
+        loadTrainers();
 
-    // Скрываем элементы управления для тренеров (только admin видит полный интерфейс)
-    if (currentUser.role !== 'admin') {
-        // Кнопки "Создать тренировку" в шапках вкладок
-        document.querySelectorAll('[onclick="openModal(\'createWorkoutModal\')"]').forEach(el => el.style.display = 'none');
-        // Вкладка "Управление расписанием" (bulk create, delete)
-        const scheduleTab = document.getElementById('scheduleTab');
-        if (scheduleTab) scheduleTab.style.display = 'none';
-        // Вкладка "Пользователи"
-        const usersTab = document.getElementById('usersTab');
-        if (usersTab) usersTab.style.display = 'none';
-        // Вкладка "Шаблон расписания"
-        const templateTab = document.getElementById('templateTab');
-        if (templateTab) templateTab.style.display = 'none';
-        // Вкладка "Картинка расписания"
-        const scheduleImageTab = document.getElementById('scheduleImageTab');
-        if (scheduleImageTab) scheduleImageTab.style.display = 'none';
-        const gymSettingsTab = document.getElementById('gymSettingsTab');
-        if (gymSettingsTab) gymSettingsTab.style.display = 'none';
-        const broadcastTab = document.getElementById('broadcastTab');
-        if (broadcastTab) broadcastTab.style.display = 'none';
-        const analyticsTab = document.getElementById('analyticsTab');
-        if (analyticsTab) analyticsTab.style.display = 'none';
-    }
+        // Скрываем элементы управления для тренеров (только admin видит полный интерфейс)
+        if (currentUser.role !== 'admin') {
+            // Кнопки "Создать тренировку" в шапках вкладок
+            document.querySelectorAll('[onclick="openModal(\'createWorkoutModal\')"]').forEach(el => el.style.display = 'none');
+            // Вкладка "Управление расписанием" (bulk create, delete)
+            const scheduleTab = document.getElementById('scheduleTab');
+            if (scheduleTab) scheduleTab.style.display = 'none';
+            // Вкладка "Пользователи"
+            const usersTab = document.getElementById('usersTab');
+            if (usersTab) usersTab.style.display = 'none';
+            // Вкладка "Тренеры"
+            const trainersTab = document.getElementById('trainersTab');
+            if (trainersTab) trainersTab.style.display = 'none';
+            // Вкладка "Шаблон расписания"
+            const templateTab = document.getElementById('templateTab');
+            if (templateTab) templateTab.style.display = 'none';
+            // Вкладка "Картинка расписания"
+            const scheduleImageTab = document.getElementById('scheduleImageTab');
+            if (scheduleImageTab) scheduleImageTab.style.display = 'none';
+            const gymSettingsTab = document.getElementById('gymSettingsTab');
+            if (gymSettingsTab) gymSettingsTab.style.display = 'none';
+            const broadcastTab = document.getElementById('broadcastTab');
+            if (broadcastTab) broadcastTab.style.display = 'none';
+            const analyticsTab = document.getElementById('analyticsTab');
+            if (analyticsTab) analyticsTab.style.display = 'none';
+        }
 
-    // Обработчики форм
-    const createForm = document.getElementById('createWorkoutForm');
-    if (createForm) {
-        createForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const rawTrainerId = formData.get('trainer_id');
-            const workoutData = {
-                name: formData.get('name'),
-                description: formData.get('description'),
-                datetime: formData.get('datetime'),
-                duration: parseInt(formData.get('duration')),
-                max_participants: parseInt(formData.get('max_participants')),
-                trainer_id: rawTrainerId ? parseInt(rawTrainerId) : null
-            };
-            createWorkout(workoutData);
-        });
+        // Обработчики форм
+        const createForm = document.getElementById('createWorkoutForm');
+        if (createForm) {
+            createForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const rawTrainerId = formData.get('trainer_id');
+                const workoutData = {
+                    name: formData.get('name'),
+                    description: formData.get('description'),
+                    datetime: formData.get('datetime'),
+                    duration: parseInt(formData.get('duration')),
+                    max_participants: parseInt(formData.get('max_participants')),
+                    trainer_id: rawTrainerId ? parseInt(rawTrainerId) : null
+                };
+                createWorkout(workoutData);
+            });
+        }
+        
+        const editForm = document.getElementById('editWorkoutForm');
+        if (editForm) {
+            editForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const workoutId = formData.get('workout_id');
+                const rawTrainerId = formData.get('trainer_id');
+                const workoutData = {
+                    name: formData.get('name'),
+                    description: formData.get('description'),
+                    datetime: formData.get('datetime'),
+                    duration: parseInt(formData.get('duration')),
+                    max_participants: parseInt(formData.get('max_participants')),
+                    trainer_id: rawTrainerId ? parseInt(rawTrainerId) : null
+                };
+                updateWorkout(workoutId, workoutData);
+            });
+        }
+        
+        // Загружаем первую вкладку
+        switchTab('today');
+    } catch (error) {
+        console.error('Ошибка инициализации приложения:', error);
+        // Сбрасываем некорректную сессию во избежание бесконечного цикла
+        logout();
     }
-    
-    const editForm = document.getElementById('editWorkoutForm');
-    if (editForm) {
-        editForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const workoutId = formData.get('workout_id');
-            const rawTrainerId = formData.get('trainer_id');
-            const workoutData = {
-                name: formData.get('name'),
-                description: formData.get('description'),
-                datetime: formData.get('datetime'),
-                duration: parseInt(formData.get('duration')),
-                max_participants: parseInt(formData.get('max_participants')),
-                trainer_id: rawTrainerId ? parseInt(rawTrainerId) : null
-            };
-            updateWorkout(workoutId, workoutData);
-        });
-    }
-    
-    // Загружаем первую вкладку
-    switchTab('today');
 });
+
+// ─── Назначение главных тренеров ──────────────────────────────────────────
+
+async function loadTrainersMapping() {
+    const el = document.getElementById('trainersMappingContainer');
+    if (!el) return;
+    el.innerHTML = '<div class="loading">Загрузка...</div>';
+    try {
+        // Загружаем список тренеров, если он еще не загружен
+        if (trainersList.length === 0) {
+            const trainersData = await apiRequest('/users/?role=trainer&limit=100');
+            const adminsData = await apiRequest('/users/?role=admin&limit=100');
+            trainersList = [...adminsData.users, ...trainersData.users];
+        }
+
+        const data = await apiRequest('/workout-trainers');
+        
+        let html = `
+            <table class="workouts-table">
+                <thead>
+                    <tr>
+                        <th>Тип занятия</th>
+                        <th>Главный тренер по умолчанию</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        if (data.workout_names.length === 0) {
+            html += '<tr><td colspan="2" style="text-align: center;">Типы занятий не найдены. Создайте слоты в шаблоне расписания.</td></tr>';
+        } else {
+            data.workout_names.forEach(name => {
+                const currentTrainerId = data.mappings[name] || '';
+                
+                let selectHtml = `<select class="form-control" style="max-width:300px; display:inline-block;" onchange="saveDefaultTrainer('${name.replace(/'/g, "\\'")}', this.value)">`;
+                selectHtml += '<option value="">— Без тренера —</option>';
+                
+                trainersList.forEach(t => {
+                    const roleLabel = t.role === 'admin' ? ' (админ)' : '';
+                    const selected = String(t.id) === String(currentTrainerId) ? 'selected' : '';
+                    selectHtml += `<option value="${t.id}" ${selected}>${t.full_name}${roleLabel}</option>`;
+                });
+                selectHtml += '</select>';
+                
+                // Нормализуем ID элемента статуса, удаляя пробелы и спецсимволы
+                const statusId = 'status-' + name.replace(/[^a-zA-Z0-9а-яА-ЯёЁ]/g, '-');
+                selectHtml += ` <span id="${statusId}" style="margin-left: 10px; font-size: 13px; font-weight: 600;"></span>`;
+
+                html += `
+                    <tr>
+                        <td style="vertical-align: middle;"><strong>${name}</strong></td>
+                        <td>${selectHtml}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        html += `
+                </tbody>
+            </table>
+        `;
+        el.innerHTML = html;
+    } catch (e) {
+        el.innerHTML = `<div class="alert alert-error">Ошибка: ${e.message}</div>`;
+    }
+}
+
+async function saveDefaultTrainer(workoutName, trainerIdStr) {
+    const statusId = 'status-' + workoutName.replace(/[^a-zA-Z0-9а-яА-ЯёЁ]/g, '-');
+    const statusEl = document.getElementById(statusId);
+    if (statusEl) {
+        statusEl.style.color = '#ff9800';
+        statusEl.textContent = '⏳ Сохранение...';
+    }
+    try {
+        const trainerId = trainerIdStr ? parseInt(trainerIdStr, 10) : null;
+        await apiRequest('/workout-trainers', {
+            method: 'POST',
+            body: JSON.stringify({
+                workout_name: workoutName,
+                trainer_id: trainerId
+            })
+        });
+        if (statusEl) {
+            statusEl.style.color = '#4CAF50';
+            statusEl.textContent = '✅ Сохранено';
+            setTimeout(() => {
+                if (statusEl.textContent === '✅ Сохранено') statusEl.textContent = '';
+            }, 2000);
+        }
+    } catch (e) {
+        if (statusEl) {
+            statusEl.style.color = '#f44336';
+            statusEl.textContent = '❌ Ошибка';
+        }
+        showError('Не удалось обновить тренера по умолчанию: ' + e.message);
+    }
+}
+
+window.loadTrainersMapping = loadTrainersMapping;
+window.saveDefaultTrainer = saveDefaultTrainer;
+
 

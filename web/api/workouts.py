@@ -524,6 +524,12 @@ async def bulk_create_schedule(
                 detail="Шаблон расписания пуст. Заполните его в разделе 'Шаблон расписания'."
             )
 
+        # Загружаем привязки тренеров по умолчанию
+        from src.database.repositories import WorkoutTrainerRepository
+        wt_repo = WorkoutTrainerRepository(session)
+        wt_mappings = await wt_repo.get_all()
+        default_trainers = {m.workout_name: m.trainer_id for m in wt_mappings}
+
         # Группируем слоты по дням недели
         WEEKLY_SCHEDULE: dict = {}
         for slot in all_slots:
@@ -590,10 +596,11 @@ async def bulk_create_schedule(
                         continue
                     
                     # Создаём
+                    workout_trainer_id = default_trainers.get(slot["name"], trainer_id)
                     await workout_repo.create(
                         name=slot["name"],
                         datetime=workout_datetime,
-                        trainer_id=trainer_id,
+                        trainer_id=workout_trainer_id,
                         duration=slot["duration"],
                         max_participants=slot["max_participants"]
                     )

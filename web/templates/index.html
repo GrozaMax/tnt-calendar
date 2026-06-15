@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TNT Admin panel</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=1.0.2">
 </head>
 <body>
     <header>
@@ -23,6 +23,7 @@
             <button class="tab active" onclick="switchTab('today')">📅 Сегодня</button>
             <button class="tab" onclick="switchTab('week')">🗓️ Неделя</button>
             <button class="tab" onclick="switchTab('users')" id="usersTab">👥 Пользователи</button>
+            <button class="tab" onclick="switchTab('trainers')" id="trainersTab">🤸 Тренеры</button>
             <button class="tab" onclick="switchTab('schedule')" id="scheduleTab">⚙️ Управление расписанием</button>
             <button class="tab" onclick="switchTab('template')" id="templateTab">📋 Шаблон расписания</button>
             <button class="tab" onclick="switchTab('scheduleImage')" id="scheduleImageTab">📸 Картинка расписания</button>
@@ -111,6 +112,22 @@
                 </table>
 
                 <div id="usersPagination" style="display:flex; justify-content:center; align-items:center; gap:10px; margin-top:16px;"></div>
+            </div>
+        </div>
+
+        <!-- Вкладка: Тренеры -->
+        <div id="trainers" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2>🤸 Назначение главных тренеров</h2>
+                </div>
+                <p style="color:#666; margin-bottom:16px;">
+                    Закрепите главного тренера за каждым типом занятия. 
+                    При автоматическом создании недельного расписания тренировки будут создаваться с назначенным здесь тренером по умолчанию.
+                </p>
+                <div id="trainersMappingContainer">
+                    <div class="loading">Загрузка...</div>
+                </div>
             </div>
         </div>
 
@@ -482,7 +499,7 @@
         </div>
     </div>
 
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=1.0.2"></script>
 </body>
 </html>
 
