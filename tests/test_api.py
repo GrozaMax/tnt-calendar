@@ -360,3 +360,27 @@ class TestAnalyticsAPI:
         data = r.json()
         assert "heatmap" in data
         assert "total_workouts" in data
+
+
+class TestScheduleTemplateAPI:
+    """Тесты API шаблона расписания"""
+
+    pytestmark = pytest.mark.asyncio
+
+    async def test_seed_from_file_success(self, api_client_admin):
+        """Тест успешного переноса шаблона из файла"""
+        response = await api_client_admin.post(
+            "/api/schedule-template/seed-from-file?force=true"
+        )
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["status"] == "success"
+        assert data["created"] > 0
+
+    async def test_seed_from_file_forbidden_trainer(self, api_client_trainer):
+        """Тест: тренер не имеет доступа к переносу шаблона"""
+        response = await api_client_trainer.post(
+            "/api/schedule-template/seed-from-file"
+        )
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+

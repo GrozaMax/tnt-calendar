@@ -118,7 +118,7 @@ async def seed_from_file(force: bool = False, user: User = Depends(get_current_u
     force=true — очищает существующий шаблон перед загрузкой.
     """
     _require_admin(user)
-    from create_weekly_schedule import WEEKLY_SCHEDULE
+    from scripts.create_weekly_schedule import WEEKLY_SCHEDULE
     async with get_session() as session:
         repo = ScheduleTemplateRepository(session)
         count = await repo.count()
