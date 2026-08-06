@@ -2,7 +2,7 @@
 Модель записи на тренировку
 """
 import enum
-from typing import TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 from sqlalchemy import String, Integer, ForeignKey, Enum, UniqueConstraint, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -50,6 +50,11 @@ class Booking(Base, TimestampMixin):
         Boolean,
         default=False,
         nullable=False
+    )
+    reminder_message_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        default=None
     )
     
     

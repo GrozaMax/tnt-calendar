@@ -99,15 +99,27 @@ async def notify_athlete_workout_cancelled(bot: Bot, athlete_telegram_id: int,
 
 async def notify_athlete_workout_reminder(bot: Bot, athlete_telegram_id: int,
                                           workout_name: str, workout_datetime: str,
-                                          athlete_lang: str = 'ru') -> None:
-    """Уведомить атлета о предстоящей тренировке"""
+                                          athlete_lang: str = 'ru') -> Optional[int]:
+    """Уведомить атлета о предстоящей тренировке. Возвращает message_id или None."""
     title = get_text('notifications.workout_reminder_title', athlete_lang)
     body = get_text('notifications.workout_reminder_body', athlete_lang,
                     name=workout_name, datetime=workout_datetime)
     try:
-        await bot.send_message(chat_id=athlete_telegram_id, text=f"*{title}*\n\n{body}", parse_mode='Markdown')
+        msg = await bot.send_message(chat_id=athlete_telegram_id, text=f"*{title}*\n\n{body}", parse_mode='Markdown')
+        return msg.message_id
     except TelegramError as e:
         logger.warning(f"Не удалось отправить напоминание атлету {athlete_telegram_id}: {e}")
+        return None
+
+
+async def delete_reminder_message(bot: Bot, chat_id: int, message_id: int) -> bool:
+    """Удалить ранее отправленное напоминание. Возвращает True при успехе."""
+    try:
+        await bot.delete_message(chat_id=chat_id, message_id=message_id)
+        return True
+    except TelegramError as e:
+        logger.warning(f"Не удалось удалить напоминание (chat={chat_id}, msg={message_id}): {e}")
+        return False
 
 
 async def check_workout_reminders(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -118,8 +130,40 @@ async def check_workout_reminders(context: ContextTypes.DEFAULT_TYPE) -> None:
     now = datetime.now()
 
     async with async_session_maker() as session:
-        # 1) Быстрая очистка: пометить все прошедшие тренировки как отправленные (без загрузки в Python)
+        # 0) Удаляем напоминания для уже начавшихся тренировок
         from src.models import Workout
+        cleanup_query = (
+            select(Booking)
+            .options(
+                joinedload(Booking.workout),
+                joinedload(Booking.user)
+            )
+            .where(
+                Booking.reminder_message_id.isnot(None),
+                Booking.workout_id.in_(
+                    select(Workout.id).where(Workout.datetime <= now)
+                )
+            )
+        )
+        cleanup_result = await session.execute(cleanup_query)
+        cleanup_bookings = cleanup_result.scalars().all()
+
+        deleted_count = 0
+        for booking in cleanup_bookings:
+            success = await delete_reminder_message(
+                bot=context.bot,
+                chat_id=booking.user.telegram_id,
+                message_id=booking.reminder_message_id
+            )
+            if success:
+                deleted_count += 1
+            booking.reminder_message_id = None
+
+        if cleanup_bookings:
+            await session.commit()
+            logger.info(f"[reminders] 🗑 Удалено напоминаний для начавшихся тренировок: {deleted_count}")
+
+        # 1) Быстрая очистка: пометить все прошедшие тренировки как отправленные (без загрузки в Python)
         past_stmt = (
             update(Booking)
             .where(
@@ -170,7 +214,7 @@ async def check_workout_reminders(context: ContextTypes.DEFAULT_TYPE) -> None:
             # Если время до тренировки в пределах окна напоминания — отправляем
             if 0 < minutes_left <= user.reminder_minutes:
                 time_str = workout.datetime.strftime('%H:%M')
-                await notify_athlete_workout_reminder(
+                message_id = await notify_athlete_workout_reminder(
                     bot=context.bot,
                     athlete_telegram_id=user.telegram_id,
                     workout_name=workout.name,
@@ -178,9 +222,11 @@ async def check_workout_reminders(context: ContextTypes.DEFAULT_TYPE) -> None:
                     athlete_lang=user.language
                 )
                 booking.reminder_sent = True
+                booking.reminder_message_id = message_id
                 sent_count += 1
-                logger.info(f"[reminders] ✅ {user.full_name} → {workout.name} в {time_str}")
+                logger.info(f"[reminders] ✅ {user.full_name} → {workout.name} в {time_str} (msg_id={message_id})")
 
         if sent_count > 0:
             await session.commit()
             logger.info(f"[reminders] Отправлено напоминаний: {sent_count}")
+
