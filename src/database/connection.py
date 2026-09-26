@@ -192,6 +192,29 @@ async def _migrate_users_reminder_minutes() -> None:
         )
 
 
+async def _migrate_bookings_reminder_message_id() -> None:
+    """Добавляет bookings.reminder_message_id для существующих SQLite БД."""
+    if "sqlite" not in Config.DATABASE_URL:
+        return
+    import logging
+    from sqlalchemy import text
+
+    logger = logging.getLogger(__name__)
+    async with engine.connect() as conn:
+        result = await conn.execute(text("PRAGMA table_info(bookings)"))
+        cols = {row[1] for row in result.fetchall()}
+        if "reminder_message_id" in cols:
+            return
+    logger.info("Миграция: bookings.reminder_message_id")
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "ALTER TABLE bookings ADD COLUMN reminder_message_id "
+                "INTEGER DEFAULT NULL"
+            )
+        )
+
+
 async def init_db() -> None:
     """
     Инициализация базы данных.
@@ -205,6 +228,7 @@ async def init_db() -> None:
     await _migrate_bookings_guests()
     await _migrate_users_reminder_minutes()
     await _migrate_bookings_reminder_sent()
+    await _migrate_bookings_reminder_message_id()
     async with async_session_maker() as session:
         from src.database.repositories.settings_repository import SettingsRepository
 
