@@ -385,6 +385,10 @@ class TelegramBot:
     
     async def post_init(self, application: Application) -> None:
         """Выполняется после инициализации приложения"""
+        # Удаляем webhook перед запуском polling, чтобы избежать Conflict ошибки
+        await application.bot.delete_webhook(drop_pending_updates=True)
+        logger.info("Webhook удалён, переключаемся на polling")
+        
         logger.info("Инициализация базы данных...")
         await init_db()
         logger.info("База данных инициализирована")
